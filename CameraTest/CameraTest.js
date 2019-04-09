@@ -33,18 +33,40 @@ let GetColourTexture = function(Colour4)
 
 function TCameraWindow(CameraName)
 {
-	this.NullTexture = Pop.CreateColourTexture( [0.3,0.0,0.0,1] );
+	this.NullTexture = Pop.CreateColourTexture( [0,0.5,0.5,1] );
 	this.FrameTexture = null;
 	this.CameraFrameCounter = new TFrameCounter( CameraName );
 	this.CameraFrameCounter.Report = function(FrameRate)	{	Debug( CameraName + " @" + FrameRate);	}
 
-	this.OnRender = function()
+	this.OnRender = function(RenderTarget)
 	{
-		let RenderTarget = this.Window;
-		let FragShader = Pop.GetShader( RenderTarget, Uvy844FragShader );
+		if ( !this.Source )
+		{
+			Debug("No source");
+			RenderTarget.ClearColour(255,0,0);
+			return;
+		}
+
+		if ( !this.FrameTexture )
+		{
+			Debug("No frametexture");
+			RenderTarget.ClearColour(255,0,255);
+			return;
+		}
+
+		let ShaderSource = BlitFragShader;
+		let FrameTexture = this.FrameTexture ? this.FrameTexture : this.NullTexture;
+
+		if ( FrameTexture.GetFormat() == "YYuv_8888_Full" )
+			ShaderSource = Yuv8888FragShader;
+		else
+			Debug("No specific shader for "+FrameTexture.GetFormat());
+		
+		//let FragShader = Pop.GetShader( RenderTarget, Uvy844FragShader );
 		//let FragShader = Pop.GetShader( RenderTarget, Yuv8888FragShader );
 		//let FragShader = Pop.GetShader( RenderTarget, BlitFragShader );
-		let FrameTexture = this.FrameTexture ? this.FrameTexture : this.NullTexture;
+		let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
+
 		let SetUniforms = function(Shader)
 		{
 			Shader.SetUniform("Texture", FrameTexture );
