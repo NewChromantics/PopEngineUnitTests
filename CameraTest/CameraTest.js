@@ -26,14 +26,14 @@ let GetColourTexture = function(Colour4)
 	if ( ColourTextureCache.hasOwnProperty(Hash) )
 		return ColourTextureCache[Hash];
 	
-	ColourTextureCache[Hash] = CreateColourTexture( Colour4 );
+	ColourTextureCache[Hash] = Pop.CreateColourTexture( Colour4 );
 	return ColourTextureCache[Hash];
 }
 
 
 function TCameraWindow(CameraName)
 {
-	this.NullTexture = CreateColourTexture( [0.3,0.0,0.0,1] );
+	this.NullTexture = Pop.CreateColourTexture( [0.3,0.0,0.0,1] );
 	this.FrameTexture = null;
 	this.CameraFrameCounter = new TFrameCounter( CameraName );
 	this.CameraFrameCounter.Report = function(FrameRate)	{	Debug( CameraName + " @" + FrameRate);	}
@@ -41,9 +41,9 @@ function TCameraWindow(CameraName)
 	this.OnRender = function()
 	{
 		let RenderTarget = this.Window;
-		let FragShader = GetShader( RenderTarget, Uvy844FragShader );
-		//let FragShader = GetShader( RenderTarget, Yuv8888FragShader );
-		//let FragShader = GetShader( RenderTarget, BlitFragShader );
+		let FragShader = Pop.GetShader( RenderTarget, Uvy844FragShader );
+		//let FragShader = Pop.GetShader( RenderTarget, Yuv8888FragShader );
+		//let FragShader = Pop.GetShader( RenderTarget, BlitFragShader );
 		let FrameTexture = this.FrameTexture ? this.FrameTexture : this.NullTexture;
 		let SetUniforms = function(Shader)
 		{
