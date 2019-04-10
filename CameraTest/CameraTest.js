@@ -59,7 +59,10 @@ function TCameraWindow(CameraName)
 
 		if ( FrameTexture.GetFormat() == "YYuv_8888_Full" )
 			ShaderSource = Yuv8888FragShader;
+		else if ( FrameTexture.GetFormat() == "Uvy_844_Full" )
+			ShaderSource = Uvy844FragShader;
 		else
+			
 			Debug("No specific shader for "+FrameTexture.GetFormat());
 		
 		//let FragShader = Pop.GetShader( RenderTarget, Uvy844FragShader );
