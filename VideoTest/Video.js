@@ -104,7 +104,7 @@ function TMp4(Filename)
 	this.LastFrame = null;
 	
 	
-	this.DecodeFrame = async function(FrameIndex)
+	this.DecodeFrame = async function(FrameIndex,ExtractPlanes)
 	{
 		//Debug("DecodeFrame("+FrameIndex+")");
 		
@@ -126,45 +126,57 @@ function TMp4(Filename)
 		if ( this.LastFrame === null )
 			this.LastFrame = -1;
 		
-		let LastFrameOutput = null;
+		let Outputs = [];
 		for ( let f=this.LastFrame+1;	f<=FrameIndex;	f++ )
 		{
 			let NalUnits = this.VideoTrack.GetFrameNalUnits(f);
 			//Debug("Decoding frame #"+f + " x" + NalUnits.length + " nal units");
-			let ExtractPlanes = true;
 			
-			let DecodeNalUnit = async function(NalUnit)
+			let DecodeNalUnit = async function(NalUnit,ExtractImage)
 			{
 				//Debug("This nalunit length = " + NalUnit.length);
 				//Debug( NalUnit.slice(0,4) );	//	check there isn't a 0001 header
-				let FrameOutput = await this.Decoder.Decode( NalUnit, ExtractPlanes );
-				//Debug(FrameOutput);
-				LastFrameOutput = FrameOutput;
+				//	pass null to NOT extract any images and just decode, so we can skip image copy/extraction on all but the last expected packet/frame
+				let FrameOutput = await this.Decoder.Decode( NalUnit, ExtractImage ? ExtractPlanes : null );
+				Outputs = Outputs.concat(FrameOutput);
 			}.bind(this);
 
 			for ( let u=0;	u<NalUnits.length;	u++ )
 			{
+				let ExtractImage = (f==FrameIndex) && (u==NalUnits.length-1);
 				let NalUnit = NalUnits[u];
-				await DecodeNalUnit(NalUnit);
+				await DecodeNalUnit( NalUnit, ExtractImage );
 			}
 		}
 		this.LastFrame = FrameIndex;
-		return LastFrameOutput;
+		if ( Outputs.length == 0 )
+			return null;
+		
+		//	just return latest frame
+		let Output = Outputs.pop();
+		if ( Outputs.length > 0 )
+		{
+			//Pop.Debug("need to clear other outputs?");
+			//Outputs.forEach( o => o.Clear() );
+		}
+		return Output;
 	}
 }
 
 
 
 
-function TVideoLoop(Filename,OnNewFrame)
+function TVideoLoop(Filename,OnNewFrame,ExtractPlanes)
 {
 	this.Mp4 = new TMp4(Filename);
+	this.FrameCounter = new TFrameCounter("Decode " + Filename);
 
 	this.OnNewFrame = function(Planes)
 	{
 		//Debug("New frame is " + JSON.stringify(Image) );
 		//Debug("New frame is " + Image.GetFormat() );
 		OnNewFrame( Planes );
+		this.FrameCounter.Add();
 	}
 	
 	this.Loop = async function()
@@ -172,21 +184,19 @@ function TVideoLoop(Filename,OnNewFrame)
 		let StartTime = Pop.GetTimeNowMs();
 		while ( true )
 		{
-			await Pop.Yield(1000/40);
+			await Pop.Yield(1000/30);	//	check every X fps
 			
 			//	work out what frame we're supposed to be on
 			let Time = Pop.GetTimeNowMs() - StartTime;
 			let Frame = this.Mp4.VideoTrack.GetFrameIndexAtTime(Time);
 			
 			//	decode frame
-			let NewFrame = await this.Mp4.DecodeFrame(Frame);
+			ExtractPlanes = (ExtractPlanes===true);
+			let NewFrame = await this.Mp4.DecodeFrame( Frame, ExtractPlanes );
 			if ( !NewFrame )
 				continue;
-			if ( NewFrame.length == 0 )
-				continue;
 			
-			//Pop.Debug("Got new frame: " +JSON.stringify(NewFrame) );
-			this.OnNewFrame( NewFrame[0].Planes );
+			this.OnNewFrame( NewFrame );
 		}
 	}
 	

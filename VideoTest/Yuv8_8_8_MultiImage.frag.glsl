@@ -1,7 +1,9 @@
 precision highp float;
 varying vec2 uv;
 
-uniform sampler2D Yuv_8_8_8_Texture;
+uniform sampler2D ChromaUTexture;
+uniform sampler2D ChromaVTexture;
+uniform sampler2D LumaTexture;
 
 
 float Range(float Min,float Max,float Value)
@@ -31,37 +33,12 @@ float3 LumaChromaToRgb(float Luma,float2 Chroma)
 	return Rgb;
 }
 
-float2 GetUvHalf(float2 uv,float Third)
-{
-	//float Top = Third / 2;
-	//float Bottom = (Third+1) / 2;
-	float Top = 0;
-	float Bottom = 1;
-	uv.y = mix( Top, Bottom, uv.y );
-	return uv;
-}
-
-float2 GetUvQuarter(float2 uv,float Third)
-{
-	float Top = Third / 4;
-	float Bottom = (Third+1) / 4;
-	uv.y = mix( Top, Bottom, uv.y );
-	return uv;
-}
-
 void main()
 {
-	float2 Luma_uv = GetUvHalf( uv, 0 );
-	float2 ChromaU_uv = GetUvQuarter( uv, 2 );
-	float2 ChromaV_uv = GetUvQuarter( uv, 3 );
+	float Luma = texture2D( LumaTexture, uv ).x;
 	
-	float Luma = texture2D( Yuv_8_8_8_Texture, Luma_uv ).x;
-	float ChromaU = texture2D( Yuv_8_8_8_Texture, ChromaU_uv ).x;
-	float ChromaV = texture2D( Yuv_8_8_8_Texture, ChromaV_uv ).x;
-
-	ChromaU = 0.5;
-	ChromaV = 0.5;
-
+	float ChromaU = texture2D( ChromaUTexture, uv ).x;
+	float ChromaV = texture2D( ChromaVTexture, uv ).x;
 	float3 Rgb = LumaChromaToRgb( Luma, float2(ChromaU,ChromaV) );
 	
 	gl_FragColor = float4( Rgb, 1 );
