@@ -64,11 +64,12 @@ function TVideoWindow(Filename)
 		let SetUniforms = function(Shader)
 		{
 			Shader.SetUniform("Texture", Texture0 );
-			Shader.SetUniform("LumaTexture", Texture0 );
+			Shader.SetUniform("TextureWidth", Texture0.GetWidth());
+			Shader.SetUniform("LumaTexture", Texture0);
 			Shader.SetUniform("ChromaTexture", Texture1 );
 			Shader.SetUniform("ChromaUTexture", Texture1 );
 			Shader.SetUniform("ChromaVTexture", Texture2 );
-			Shader.SetUniform("Yuv_8_8_8_Texture", Texture0 );
+			Shader.SetUniform("Yuv_8_8_8_Texture", Texture0);
 		}
 		RenderTarget.DrawQuad( FragShader, SetUniforms.bind(this) );
 	}
