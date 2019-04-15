@@ -1,14 +1,38 @@
+function isString(value)
+{
+	return typeof value === 'string' || value instanceof String;
+}
+
 function ListenToSerial(PortName)
 {
-	Pop.Debug("Opening " + PortName );
-	let ComPort = new Pop.Serial.ComPort(PortName,115200);
+	if ( !PortName.includes('cu.wchus') )
+	{
+		//return;
+	}
 	
 	let Loop = async function()
 	{
-		while ( true )
+		while( true )
 		{
-			let NewData = await ComPort.Read();
-			Pop.Debug(PortName + ": " + NewData);
+			try
+			{
+				Pop.Debug("Opening " + PortName );
+				let ReadAsString = true;
+				let ComPort = new Pop.Serial.ComPort(PortName,115200,ReadAsString);
+				while ( true )
+				{
+					let NewData = await ComPort.Read();
+					if ( isString(NewData) )
+						NewData = NewData.trim();
+					
+					Pop.Debug(PortName + ": " + NewData);
+				}
+			}
+			catch(e)
+			{
+				Pop.Debug(e);
+				await Pop.Yield(1000);
+			}
 		}
 	}
 
