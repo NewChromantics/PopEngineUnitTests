@@ -3,43 +3,43 @@ function isString(value)
 	return typeof value === 'string' || value instanceof String;
 }
 
-function ListenToSerial(PortName)
+let ListenToSerial = async function(PortName)
 {
-	if ( !PortName.includes('cu.wchus') )
-	{
-		//return;
-	}
+	if ( PortName.includes('Bluetooth') )
+		return;
 	
-	let Loop = async function()
+	//	if we try to open TTY ports for reading, open() hangs atm (which blocks JS)
+	if ( !PortName.includes('/dev/cu.') )
 	{
-		while( true )
+		return;
+	}
+
+	while(true)
+	{
+		try
 		{
-			try
+			Pop.Debug("Opening " + PortName +"..." );
+			let ReadAsString = true;
+			let ComPort = new Pop.Serial.ComPort(PortName,115200,ReadAsString);
+			while ( true )
 			{
-				Pop.Debug("Opening " + PortName );
-				let ReadAsString = true;
-				let ComPort = new Pop.Serial.ComPort(PortName,115200,ReadAsString);
-				while ( true )
-				{
-					let NewData = await ComPort.Read();
-					if ( isString(NewData) )
-						NewData = NewData.trim();
+				let NewData = await ComPort.Read();
+				if ( isString(NewData) )
+					NewData = NewData.trim();
 					
-					Pop.Debug(PortName + ": " + NewData);
-				}
+				Pop.Debug(PortName + ": " + NewData);
 			}
-			catch(e)
-			{
-				Pop.Debug(e);
-				await Pop.Yield(1000);
-			}
+		}
+		catch(e)
+		{
+			//	wait before reconnecting
+			Pop.Debug(e);
+			await Pop.Yield(1000);
 		}
 	}
 
-	Loop().catch(Pop.Debug);
 }
 
 const SerialPorts = Pop.Serial.EnumPorts();
-Pop.Debug("Found x" + SerialPorts.length +" serial ports");
+Pop.Debug("Found x" + SerialPorts.length +" serial ports; " + SerialPorts.join(',') );
 SerialPorts.forEach( ListenToSerial );
-
