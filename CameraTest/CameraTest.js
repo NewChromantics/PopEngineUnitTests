@@ -14,7 +14,6 @@ function TCameraWindow(CameraName)
 {
 	this.Textures = [];
 	this.CameraFrameCounter = new TFrameCounter( CameraName );
-	this.CameraFrameCounter.Report = function(FrameRate)	{	Debug( CameraName + " @" + FrameRate);	}
 
 	this.OnRender = function(RenderTarget)
 	{
@@ -36,6 +35,7 @@ function TCameraWindow(CameraName)
 		
 		//Pop.Debug(Texture0.GetFormat());
 		let ShaderSource = BlitFragShader;
+		
 		if ( Texture0.GetFormat() == "YYuv_8888_Full" )
 			ShaderSource = Yuv8888FragShader;
 		else if ( Texture0.GetFormat() == "Uvy_844_Full" )
@@ -52,7 +52,7 @@ function TCameraWindow(CameraName)
 			this.Textures.forEach( t => Formats.push(t.GetFormat() ));
 			Pop.Debug("No specific shader for "+ Formats.join(',') );
 		}
-
+		
 		
 		let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
 
@@ -66,27 +66,46 @@ function TCameraWindow(CameraName)
 			Shader.SetUniform("ChromaVTexture", Texture2 );
 			Shader.SetUniform("Yuv_8_8_8_Texture", Texture0 );
 		}
-		RenderTarget.DrawQuad( FragShader, SetUniforms.bind(this) );
+		RenderTarget.DrawQuad( FragShader, SetUniforms );
 	}
 	
+	this.ProcessNextFrame = async function(FrameBuffer)
+	{
+		let Stream = 0;
+		let Latest = false;
+		//let NextFrame = await this.Source.GetNextFrame( Planes, Stream, Latest );
+		//let NextFrame = await this.Source.GetNextFrame( undefined, Stream, Latest );
+		let NextFrame = await this.Source.GetNextFrame( FrameBuffer, Stream, Latest );
+		//NextFrame = null;
+		//Pop.GarbageCollect();
+		//return;
+		NextFrame = FrameBuffer;
+		if ( NextFrame == null )
+			return false;
+		
+		if ( !NextFrame.Planes )
+		{
+			this.Textures = [NextFrame];
+		}
+		else
+		{
+			this.Textures = NextFrame.Planes;
+		}
+		
+		return true;
+	}
 	
 	this.ListenForFrames = async function()
 	{
+		let FrameBuffer = new Pop.Image();
 		while ( true )
 		{
 			try
 			{
-				let Stream = 0;
-				let Latest = true;
 				await Pop.Yield(4);
-				let NextFrame = await this.Source.GetNextFrame( [], Stream, Latest );
-				
-				if ( NextFrame == null )
-					continue;
-				if ( NextFrame.Planes == null )
-					continue;
-				this.Textures = NextFrame.Planes;
-				this.CameraFrameCounter.Add();
+				const HadFrame = await this.ProcessNextFrame(FrameBuffer);
+				if ( HadFrame )
+					this.CameraFrameCounter.Add();
 			}
 			catch(e)
 			{

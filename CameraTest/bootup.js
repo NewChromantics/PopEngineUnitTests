@@ -17,7 +17,7 @@ let MemCheckLoop = async function()
 	{
 		try
 		{
-			await Pop.Yield(500);
+			await Pop.Yield(1000);
 			Pop.GarbageCollect();
 			let Debug = "Memory: ";
 			
