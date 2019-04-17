@@ -34,7 +34,7 @@ function TCameraWindow(CameraName)
 		let Texture1 = this.Textures[1];
 		let Texture2 = this.Textures[2];
 		
-		Pop.Debug(Texture0.GetFormat());
+		//Pop.Debug(Texture0.GetFormat());
 		let ShaderSource = BlitFragShader;
 		if ( Texture0.GetFormat() == "YYuv_8888_Full" )
 			ShaderSource = Yuv8888FragShader;
@@ -132,10 +132,7 @@ async function FindCamerasLoop()
 		try
 		{
 			let Window = new TCameraWindow(CameraName);
-			//CameraWindows.push(Window);
-
-			Window.Window.SetFullscreen(true);
-			Window.Window.SetFullscreen(false);
+			CameraWindows.push(Window);
 		}
 		catch(e)
 		{
