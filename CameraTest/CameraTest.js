@@ -79,7 +79,8 @@ function TCameraWindow(CameraName)
 		//NextFrame = null;
 		//Pop.GarbageCollect();
 		//return;
-		NextFrame = FrameBuffer;
+		if ( FrameBuffer )
+			NextFrame = FrameBuffer;
 		if ( NextFrame == null )
 			return false;
 		
@@ -92,28 +93,27 @@ function TCameraWindow(CameraName)
 			this.Textures = NextFrame.Planes;
 		}
 		
+		NextFrame = null;
 		return true;
 	}
 	
+	let FrameBuffer = new Pop.Image();
+	//let FrameBuffer = undefined;
 	this.ListenForFrames = async function()
 	{
-		let FrameBuffer = new Pop.Image();
-		while ( true )
+		try
 		{
-			try
-			{
-				await Pop.Yield(4);
-				const HadFrame = await this.ProcessNextFrame(FrameBuffer);
-				if ( HadFrame )
-					this.CameraFrameCounter.Add();
-			}
-			catch(e)
-			{
-				//	sometimes OnFrameExtracted gets triggered, but there's no frame? (usually first few on some cameras)
-				//	so that gets passed up here. catch it, but make sure we re-request
-				if ( e != "No frame packet buffered" )
-					Pop.Debug( CameraName + " ListenForFrames: " + e);
-			}
+			await Pop.Yield(5);
+			const HadFrame = await this.ProcessNextFrame(FrameBuffer);
+			if ( HadFrame )
+				this.CameraFrameCounter.Add();
+		}
+		catch(e)
+		{
+			//	sometimes OnFrameExtracted gets triggered, but there's no frame? (usually first few on some cameras)
+			//	so that gets passed up here. catch it, but make sure we re-request
+			if ( e != "No frame packet buffered" )
+				Pop.Debug( CameraName + " ListenForFrames: " + e);
 		}
 	}
 	
@@ -123,7 +123,7 @@ function TCameraWindow(CameraName)
 	this.Window.OnMouseDown = function(){};
 	this.Window.OnMouseUp = function(){};
 	this.Source = new Pop.Media.Source(CameraName);
-	this.ListenForFrames().catch(Debug);
+	new Pop.AsyncLoop(this.ListenForFrames.bind(this));
 	
 }
 
