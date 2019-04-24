@@ -71,41 +71,41 @@ function TCameraWindow(CameraName)
 	
 	this.ProcessNextFrame = async function(FrameBuffer)
 	{
-		let Stream = 0;
-		let Latest = false;
+		const Stream = 0;
+		const Latest = true;
 		//let NextFrame = await this.Source.GetNextFrame( Planes, Stream, Latest );
 		//let NextFrame = await this.Source.GetNextFrame( undefined, Stream, Latest );
-		let NextFrame = await this.Source.GetNextFrame( FrameBuffer, Stream, Latest );
+		const NextFrame = await this.Source.GetNextFrame( FrameBuffer, Stream, Latest );
 		//NextFrame = null;
 		//Pop.GarbageCollect();
 		//return;
-		NextFrame = FrameBuffer;
-		if ( NextFrame == null )
-			return false;
 		
-		if ( !NextFrame.Planes )
-		{
-			this.Textures = [NextFrame];
-		}
-		else
-		{
-			this.Textures = NextFrame.Planes;
-		}
+		const NewFrame = NextFrame ? NextFrame : FrameBuffer;
+		if ( !NewFrame )
+			return null;
 		
-		return true;
+		if ( !NewFrame.Planes )
+			return [NewFrame];
+
+		return NewFrame.Planes;
 	}
 	
 	this.ListenForFrames = async function()
 	{
-		let FrameBuffer = new Pop.Image();
+		const FrameBuffer = new Pop.Image();
+		//const FrameBuffer = undefined;
 		while ( true )
 		{
 			try
 			{
 				await Pop.Yield(4);
-				const HadFrame = await this.ProcessNextFrame(FrameBuffer);
-				if ( HadFrame )
-					this.CameraFrameCounter.Add();
+				const fb = FrameBuffer;
+				const NewTexures = await this.ProcessNextFrame(fb);
+				if ( !NewTexures )
+					continue;
+				
+				this.Textures = NewTexures;
+				this.CameraFrameCounter.Add();
 			}
 			catch(e)
 			{

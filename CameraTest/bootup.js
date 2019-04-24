@@ -1,3 +1,4 @@
+
 Pop.Include = function(Filename)
 {
 	const Source = Pop.LoadFileAsString(Filename);
@@ -17,8 +18,9 @@ let MemCheckLoop = async function()
 	{
 		try
 		{
-			await Pop.Yield(1000);
+			await Pop.Yield(10);
 			Pop.GarbageCollect();
+		
 			let Debug = "Memory: ";
 			
 			let ImageHeapSize = (Pop.GetImageHeapSize() / 1024 / 1024).toFixed(2) + "mb";
@@ -29,15 +31,17 @@ let MemCheckLoop = async function()
 			let GeneralHeapCount = Pop.GetHeapCount();
 			Debug += " GeneralHeapSize="+GeneralHeapSize+" x" + GeneralHeapCount;
 			
-			Debug += JSON.stringify(Pop.GetHeapObjects());
+			//Debug += JSON.stringify(Pop.GetHeapObjects());
 			Pop.Debug(Debug);
+		 	Debug = null;
 		}
 		catch(e)
 		{
-			Debug("Loop Error: " + e );
+			Pop.Debug("Loop Error: " + e );
 		}
 	}
 }
 MemCheckLoop();
+
 
 
