@@ -15,32 +15,6 @@ Pop.Include('PopBrowser.js');
 Pop.Include('mp4.js');
 Pop.Include('Video.js');
 Pop.Include('VideoTest.js');
+//Pop.Include('../Common/MemCheckLoop.js');
 
 
-
-
-
-let MemCheckLoop = async function()
-{
-	while(true)
-	{
-		try
-		{
-			await Pop.Yield(1000);
-			//Pop.GarbageCollect();
-			let ImageHeapSize = (Pop.GetImageHeapSize() / 1024 / 1024).toFixed(2) + "mb";
-			let ImageHeapCount = Pop.GetImageHeapCount();
-			let GeneralHeapSize = (Pop.GetHeapSize() / 1024 / 1024).toFixed(2) + "mb";
-			let GeneralHeapCount = Pop.GetHeapCount();
-			Pop.Debug("Memory: ImageHeapSize="+ImageHeapSize+" x" + ImageHeapCount + " GeneralHeapSize=" + GeneralHeapSize + " x"+GeneralHeapCount);
-
-			let GeneralHeapObjects = Pop.GetHeapObjects();
-			Pop.Debug(JSON.stringify(GeneralHeapObjects));
-		}
-		catch(e)
-		{
-			Pop.Debug("Loop Error: " + e );
-		}
-	}
-}
-MemCheckLoop();

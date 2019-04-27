@@ -9,39 +9,9 @@ Pop.Include('../Common/PopEngine.js');
 Pop.Include('../Common/PopShaderCache.js');
 Pop.Include('../Common/TFrameCounter.js');
 Pop.Include('CameraTest.js');
+Pop.Include('../Common/MemCheckLoop.js');
 
 
-
-let MemCheckLoop = async function()
-{
-	while(true)
-	{
-		try
-		{
-			await Pop.Yield(10);
-			Pop.GarbageCollect();
-		
-			let Debug = "Memory: ";
-			
-			let ImageHeapSize = (Pop.GetImageHeapSize() / 1024 / 1024).toFixed(2) + "mb";
-			let ImageHeapCount = Pop.GetImageHeapCount();
-			Debug += " ImageHeapSize="+ImageHeapSize+" x" + ImageHeapCount;
-			
-			let GeneralHeapSize = (Pop.GetHeapSize() / 1024 / 1024).toFixed(2) + "mb";
-			let GeneralHeapCount = Pop.GetHeapCount();
-			Debug += " GeneralHeapSize="+GeneralHeapSize+" x" + GeneralHeapCount;
-			
-			//Debug += JSON.stringify(Pop.GetHeapObjects());
-			Pop.Debug(Debug);
-		 	Debug = null;
-		}
-		catch(e)
-		{
-			Pop.Debug("Loop Error: " + e );
-		}
-	}
-}
-MemCheckLoop();
 
 
 
