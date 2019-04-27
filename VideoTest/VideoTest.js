@@ -16,8 +16,6 @@ function TVideoWindow(Filename)
 	{
 		if ( this.Textures )
 		{
-			//	gr: don't need to clear manually any more?
-			this.Textures.forEach( t => t.Clear() );
 			this.Textures = null;
 		}
 		
