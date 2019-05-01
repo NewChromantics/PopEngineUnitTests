@@ -10,10 +10,12 @@ let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 
 
 
-function TCameraWindow(CameraName)
+function TCameraWindow(CameraName,Async=true)
 {
 	this.Textures = [];
 	this.CameraFrameCounter = new TFrameCounter( CameraName );
+	this.FrameBuffer = new Pop.Image();
+
 
 	this.OnRender = function(RenderTarget)
 	{
@@ -48,15 +50,15 @@ function TCameraWindow(CameraName)
 			ShaderSource = Yuv8_8_8FragShader;
 		else
 		{
-			let Formats = [];
-			this.Textures.forEach( t => Formats.push(t.GetFormat() ));
-			Pop.Debug("No specific shader for "+ Formats.join(',') );
+			//let Formats = [];
+			//this.Textures.forEach( t => Formats.push(t.GetFormat() ));
+			//Pop.Debug("No specific shader for "+ Formats.join(',') );
 		}
 		
 		
-		let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
+		const FragShader = Pop.GetShader( RenderTarget, ShaderSource );
 
-		let SetUniforms = function(Shader)
+		const SetUniforms = function(Shader)
 		{
 			Shader.SetUniform("Texture", Texture0 );
 			Shader.SetUniform("TextureWidth", Texture0.GetWidth());
@@ -69,6 +71,18 @@ function TCameraWindow(CameraName)
 		RenderTarget.DrawQuad( FragShader, SetUniforms );
 	}
 	
+	//	synchornous version
+	this.OnNewFrame = function(Frame)
+	{
+		this.Textures = [Frame];
+		//Frame = null;
+		/*
+		//Frame.Clear();
+		//this.Textures = [Frame];
+		this.CameraFrameCounter.Add();
+		*/
+	}
+
 	this.ProcessNextFrame = async function(FrameBuffer)
 	{
 		const Stream = 0;
@@ -92,7 +106,7 @@ function TCameraWindow(CameraName)
 	
 	this.ListenForFrames = async function()
 	{
-		const FrameBuffer = new Pop.Image();
+		const FrameBuffer = this.FrameBuffer;
 		//const FrameBuffer = undefined;
 		while ( true )
 		{
@@ -123,8 +137,21 @@ function TCameraWindow(CameraName)
 	this.Window.OnMouseDown = function(){};
 	this.Window.OnMouseUp = function(){};
 	this.Source = new Pop.Media.Source(CameraName);
-	this.ListenForFrames().catch(Debug);
-	
+
+	if ( Async )
+	{
+		this.ListenForFrames().catch(Debug);
+	}
+	else
+	{
+		if ( this.FrameBuffer )
+		{
+			const FrameBuffer = this.FrameBuffer;
+			this.Source.GetNextFrame( FrameBuffer, 0, true );
+			//this.Textures = [FrameBuffer];
+		}
+		this.Source.OnNewFrame = this.OnNewFrame.bind(this);
+	}
 }
 
 
@@ -150,7 +177,8 @@ async function FindCamerasLoop()
 		
 		try
 		{
-			let Window = new TCameraWindow(CameraName);
+			let Async = false;
+			let Window = new TCameraWindow(CameraName,Async);
 			CameraWindows.push(Window);
 		}
 		catch(e)
