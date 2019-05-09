@@ -182,14 +182,14 @@ function TVideoLoop(Filename,OnNewFrame,ExtractPlanes)
 	
 	this.Loop = async function()
 	{
-		const StartTime = Pop.GetTimeNowMs();
+		let StartTime = 0;
 		while ( true )
 		{
 			//await Pop.Yield(1000/30);	//	check every X fps
 			await Pop.Yield(10);	//	check every X fps
 
 			//	work out what frame we're supposed to be on
-			const Time = Pop.GetTimeNowMs() - StartTime;
+			const Time = StartTime == 0 ? 0 : Pop.GetTimeNowMs() - StartTime;
 			const Frame = this.Mp4.VideoTrack.GetFrameIndexAtTime(Time);
 			
 			//	decode frame
@@ -198,10 +198,12 @@ function TVideoLoop(Filename,OnNewFrame,ExtractPlanes)
 			if ( !NewFrame )
 				continue;
 			
+			//	init time after first frame
+			if ( StartTime == 0 )
+				StartTime = Pop.GetTimeNowMs();
 			this.OnNewFrame( NewFrame );
 		}
 	}
 	
-	this.Loop().catch(Pop.Debug);
+	this.Loop().then().catch(Pop.Debug);
 }
-
