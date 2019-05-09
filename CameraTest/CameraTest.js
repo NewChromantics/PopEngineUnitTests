@@ -38,6 +38,8 @@ function TCameraWindow(CameraName)
 		
 		if ( Texture0.GetFormat() == "YYuv_8888_Full" )
 			ShaderSource = Yuv8888FragShader;
+		else if ( Texture0.GetFormat() == "YYuv_8888_Ntsc" )
+			ShaderSource = Yuv8888FragShader;
 		else if ( Texture0.GetFormat() == "Uvy_844_Full" )
 			ShaderSource = Uvy844FragShader;
 		else if ( Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3 )
@@ -98,7 +100,7 @@ function TCameraWindow(CameraName)
 		{
 			try
 			{
-				await Pop.Yield(4);
+				await Pop.Yield(10);
 				const fb = FrameBuffer;
 				const NewTexures = await this.ProcessNextFrame(fb);
 				if ( !NewTexures )
