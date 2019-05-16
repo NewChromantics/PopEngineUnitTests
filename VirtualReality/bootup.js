@@ -6,3 +6,5 @@ Pop.Debug("Virtual Reality Test");
 //	attach to device
 //	get updates
 //	render
+let Hmd = new Pop.Openvr.Hmd("Device Name");
+
