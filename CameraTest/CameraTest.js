@@ -4,6 +4,7 @@ let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 let Yuv888FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
 let Yuv8888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
+let KinectDepthFragShader = Pop.LoadFileAsString('KinectDepth.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
@@ -48,6 +49,8 @@ function TCameraWindow(CameraName)
 			ShaderSource = BlitFragShader;
 		else if ( Texture0.GetFormat() == "Yuv_8_8_8_Full" )
 			ShaderSource = Yuv8_8_8FragShader;
+		else if ( Texture0.GetFormat() == "KinectDepth" )
+			ShaderSource = KinectDepthFragShader;
 		else
 		{
 			let Formats = [];
