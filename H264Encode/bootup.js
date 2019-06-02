@@ -1,13 +1,53 @@
+let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
+let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
+
+
+Pop.CreateColourTexture = function(Colour4)
+{
+	let NewTexture = new Pop.Image();
+	NewTexture.WritePixels( 1, 1, Colour4 );
+	return NewTexture;
+}
+
+
+let InputImage = Pop.CreateColourTexture([255,0,0,255]);
+let OutputImage = Pop.CreateColourTexture([0,255,0,255]);
+
+
+
+function Render(RenderTarget)
+{
+	const ShaderSource = BlitFragShader;
+	const FragShader = new Pop.Opengl.Shader( RenderTarget, VertShader, BlitFragShader );
+		
+	const DrawLeft_SetUniforms = function(Shader)
+	{
+		Shader.SetUniform("VertexRect", [0,0,0.5,1] );
+		Shader.SetUniform("Texture", InputImage );
+	}
+	RenderTarget.DrawQuad( FragShader, DrawLeft_SetUniforms );
+
+	const DrawRight_SetUniforms = function(Shader)
+	{
+		Shader.SetUniform("VertexRect", [0.5,0,0.5,1] );
+		Shader.SetUniform("Texture", OutputImage );
+	}
+	RenderTarget.DrawQuad( FragShader, DrawRight_SetUniforms );
+}
+
+let Window = new Pop.Opengl.Window("H264");
+Window.OnRender = Render;
+Window.OnMouseMove = function(){};
 
 
 async function Run(Filename)
 {
 	const Input = new Pop.Image(Filename);
+	InputImage = Input;
 	const Encoder = new Pop.Media.H264Encoder();
 	await Encoder.Encode(Input,0);
 
 	const Decoder = new Pop.Media.AvcDecoder();
-	let Output = null;
 
 	//	encode, decode, encode, decode etc
 	while ( true )
@@ -28,7 +68,8 @@ async function Run(Filename)
 		if ( Frame )
 		{
 			Pop.Debug("Output frame",Frame.GetFormat());
-			Output = Frame;
+			OutputImage = Frame;
+			OutputImage.SetFormat('Greyscale');
 		}
 		
 	}
