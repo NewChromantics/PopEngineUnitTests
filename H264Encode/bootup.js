@@ -3,24 +3,20 @@
 async function Run(Filename)
 {
 	const Input = new Pop.Image(Filename);
-	const Encoder = new Pop.Media.H264Encoder('baseline');
-	await Encoder.Encode(Input);
+	const Encoder = new Pop.Media.H264Encoder();
+	await Encoder.Encode(Input,0);
 
-	let H264Packets = [];
+	const Decoder = new Pop.Media.AvcDecoder();
+	let Output = null;
+
+	//	encode, decode, encode, decode etc
 	while ( true )
 	{
-		const Packet = await Encoder.PopPacket();
+		const Packet = await Encoder.GetNextPacket();
 		if ( !Packet )
 			break;
-		H264Packets.push(Packet);
-	}
-
-	//	decode!
-	let Output = null;
-	const Decoder = new Pop.Media.AvcDecoder();
-	for ( let i=0;	i<H264Packets.length;	i++ )
-	{
-		const Frame = Decoder.PushData(H264Packets[i]);
+	
+		const Frame = Decoder.PushData(Packet);
 		if ( Frame )
 			Output = Frame;
 	}
