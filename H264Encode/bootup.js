@@ -1,5 +1,6 @@
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
+let CompareFragShader = Pop.LoadFileAsString('Compare.frag.glsl');
 
 
 Pop.CreateColourTexture = function(Colour4)
@@ -13,38 +14,51 @@ Pop.CreateColourTexture = function(Colour4)
 let InputImage = Pop.CreateColourTexture([255,0,0,255]);
 let OutputImage = Pop.CreateColourTexture([0,255,0,255]);
 
-
+let BlitShader = null;
+let CompareShader = null;
 
 function Render(RenderTarget)
 {
-	const ShaderSource = BlitFragShader;
-	const FragShader = new Pop.Opengl.Shader( RenderTarget, VertShader, BlitFragShader );
-		
+	if ( !BlitShader )
+		BlitShader = new Pop.Opengl.Shader( RenderTarget, VertShader, BlitFragShader );
+	
+	if ( !CompareShader )
+		CompareShader = new Pop.Opengl.Shader( RenderTarget, VertShader, CompareFragShader );
+	
 	const DrawLeft_SetUniforms = function(Shader)
 	{
-		Shader.SetUniform("VertexRect", [0,0,0.5,1] );
+		Shader.SetUniform("VertexRect", [0,0,0.33,1] );
 		Shader.SetUniform("Texture", InputImage );
 	}
-	RenderTarget.DrawQuad( FragShader, DrawLeft_SetUniforms );
+	RenderTarget.DrawQuad( BlitShader, DrawLeft_SetUniforms );
 
 	const DrawRight_SetUniforms = function(Shader)
 	{
-		Shader.SetUniform("VertexRect", [0.5,0,0.5,1] );
+		Shader.SetUniform("VertexRect", [0.33,0,0.33,1] );
 		Shader.SetUniform("Texture", OutputImage );
 	}
-	RenderTarget.DrawQuad( FragShader, DrawRight_SetUniforms );
+	RenderTarget.DrawQuad( BlitShader, DrawRight_SetUniforms );
+
+	const DrawCompare_SetUniforms = function(Shader)
+	{
+		Shader.SetUniform("VertexRect", [0.66,0,0.33,1] );
+		Shader.SetUniform("TextureA", InputImage );
+		Shader.SetUniform("TextureB", OutputImage );
+	}
+	RenderTarget.DrawQuad( CompareShader, DrawCompare_SetUniforms );
 }
 
-let Window = new Pop.Opengl.Window("H264");
-Window.OnRender = Render;
-Window.OnMouseMove = function(){};
+let RenderWindow = new Pop.Opengl.Window("H264");
+RenderWindow.OnRender = Render;
+RenderWindow.OnMouseMove = function(){};
 
 
-async function Run(Filename)
+async function Run(Filename,EncodePreset)
 {
 	const Input = new Pop.Image(Filename);
+	Input.SetFormat('Greyscale');
 	InputImage = Input;
-	const Encoder = new Pop.Media.H264Encoder();
+	const Encoder = new Pop.Media.H264Encoder(EncodePreset);
 	await Encoder.Encode(Input,0);
 
 	const Decoder = new Pop.Media.AvcDecoder();
@@ -74,5 +88,27 @@ async function Run(Filename)
 		
 	}
 }
-Run('cat.jpeg').then(Pop.Debug).catch(Pop.Debug);
+
+let EncodePreset = false;
+
+let ParamsWindow = new Pop.Gui.Window("Preset Quality");
+let Slider = new Pop.Gui.Slider( ParamsWindow, [0,0,600,80] );
+let Label = new Pop.Gui.Label( ParamsWindow, [0,80,600,30] );
+
+Slider.SetMinMax( 0, 9 );
+Slider.OnChanged = function(Value)
+{
+	Label.SetValue("Encoder Preset: " + Value);
+	Value = Math.floor(Value);
+	if ( Value != EncodePreset || EncodePreset === false )
+	{
+		EncodePreset = Value;
+		Run('cat.jpeg',EncodePreset).then(Pop.Debug).catch(Pop.Debug);
+	}
+}
+//	init
+Slider.SetValue( 5 );
+Slider.OnChanged( 5 );
+
+
 
