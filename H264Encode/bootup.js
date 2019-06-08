@@ -91,9 +91,10 @@ async function Run(Filename,EncodePreset)
 
 let EncodePreset = false;
 
-let ParamsWindow = new Pop.Gui.Window("Preset Quality");
-let Slider = new Pop.Gui.Slider( ParamsWindow, [0,0,600,80] );
-let Label = new Pop.Gui.Label( ParamsWindow, [0,80,600,30] );
+let ParamsWindow = new Pop.Gui.Window("Preset Quality", [0,0,200,100], false );
+//ParamsWindow.EnableScrollbars(true,true);
+let Label = new Pop.Gui.Label( ParamsWindow, [0,0,200,20] );
+let Slider = new Pop.Gui.Slider( ParamsWindow, [0,20,200,80] );
 
 Slider.SetMinMax( 0, 9 );
 Slider.OnChanged = function(Value)
