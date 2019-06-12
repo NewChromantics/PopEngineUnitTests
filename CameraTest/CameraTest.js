@@ -51,6 +51,8 @@ function TCameraWindow(CameraName)
 			ShaderSource = Yuv8_8_8FragShader;
 		else if ( Texture0.GetFormat() == "KinectDepth" )
 			ShaderSource = KinectDepthFragShader;
+		else if ( Texture0.GetFormat() == "FreenectDepthmm" )
+			ShaderSource = KinectDepthFragShader;
 		else
 		{
 			let Formats = [];
