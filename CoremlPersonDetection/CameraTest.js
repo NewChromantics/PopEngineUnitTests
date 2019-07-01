@@ -7,6 +7,7 @@ let Yuv8888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
 let KinectDepthFragShader = Pop.LoadFileAsString('KinectDepth.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let GreyscaleFragShader = Pop.LoadFileAsString('Greyscale.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
@@ -46,6 +47,8 @@ function TCameraWindow(CameraName)
 			ShaderSource = Uvy844FragShader;
 		else if ( Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3 )
 			ShaderSource = Yuv8_8_8_MultiImageFragShader;
+		else if ( Texture0.GetFormat() == "Greyscale" )
+			ShaderSource = GreyscaleFragShader;
 		else if ( Texture0.GetFormat() == "RGBA" )
 			ShaderSource = BlitFragShader;
 		else if ( Texture0.GetFormat() == "Yuv_8_8_8_Full" )
@@ -117,7 +120,7 @@ function TCameraWindow(CameraName)
 				NewTexures[0].Resize(368,368);
 				NewTexures[0].SetFormat('Greyscale');
 				const Pose = await Coreml.OpenPose(NewTexures[0]);
-				Pop.Debug("Pose",JSON.stringify(Pose));
+				//Pop.Debug("Pose",JSON.stringify(Pose));
 				
 				this.Textures = NewTexures;
 				this.CameraFrameCounter.Add();
