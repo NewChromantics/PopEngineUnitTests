@@ -9,13 +9,16 @@ let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 let GreyscaleFragShader = Pop.LoadFileAsString('Greyscale.frag.glsl');
 
+let MaskShaderSource = Pop.LoadFileAsString('Mask.frag.glsl');
+
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
 
 
 function TCameraWindow(CameraName)
 {
-	this.Textures = [];
+	this.VideoTextures = [];
+	this.BackgroundTexture = null;
 	this.CameraFrameCounter = new TFrameCounter( CameraName );
 
 	this.OnRender = function(RenderTarget)
@@ -26,15 +29,15 @@ function TCameraWindow(CameraName)
 			return;
 		}
 
-		if ( !this.Textures.length )
+		if ( !this.VideoTextures.length )
 		{
 			RenderTarget.ClearColour(0,0,255);
 			return;
 		}
 
-		let Texture0 = this.Textures[0];
-		let Texture1 = this.Textures[1];
-		let Texture2 = this.Textures[2];
+		let Texture0 = this.VideoTextures[0];
+		let Texture1 = this.VideoTextures[1];
+		let Texture2 = this.VideoTextures[2];
 		
 		//Pop.Debug(Texture0.GetFormat());
 		let ShaderSource = BlitFragShader;
@@ -45,7 +48,7 @@ function TCameraWindow(CameraName)
 			ShaderSource = Yuv8888FragShader;
 		else if ( Texture0.GetFormat() == "Uvy_844_Full" )
 			ShaderSource = Uvy844FragShader;
-		else if ( Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3 )
+		else if ( Texture0.GetFormat() == "Greyscale" && this.VideoTextures.length == 3 )
 			ShaderSource = Yuv8_8_8_MultiImageFragShader;
 		else if ( Texture0.GetFormat() == "Greyscale" )
 			ShaderSource = GreyscaleFragShader;
@@ -62,24 +65,38 @@ function TCameraWindow(CameraName)
 		else
 		{
 			let Formats = [];
-			this.Textures.forEach( t => Formats.push(t.GetFormat() ));
+			this.VideoTextures.forEach( t => Formats.push(t.GetFormat() ));
 			Pop.Debug("No specific shader for "+ Formats.join(',') );
 		}
 		
-		
-		let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
 
-		let SetUniforms = function(Shader)
 		{
-			Shader.SetUniform("Texture", Texture0 );
-			Shader.SetUniform("TextureWidth", Texture0.GetWidth());
-			Shader.SetUniform("LumaTexture", Texture0 );
-			Shader.SetUniform("ChromaTexture", Texture1 );
-			Shader.SetUniform("ChromaUTexture", Texture1 );
-			Shader.SetUniform("ChromaVTexture", Texture2 );
-			Shader.SetUniform("Yuv_8_8_8_Texture", Texture0 );
+			let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
+			let SetUniforms = function(Shader)
+			{
+				Shader.SetUniform("Texture", Texture0 );
+				Shader.SetUniform("TextureWidth", Texture0.GetWidth());
+				Shader.SetUniform("LumaTexture", Texture0 );
+				Shader.SetUniform("ChromaTexture", Texture1 );
+				Shader.SetUniform("ChromaUTexture", Texture1 );
+				Shader.SetUniform("ChromaVTexture", Texture2 );
+				Shader.SetUniform("Yuv_8_8_8_Texture", Texture0 );
+			}
+			RenderTarget.DrawQuad( FragShader, SetUniforms );
 		}
-		RenderTarget.DrawQuad( FragShader, SetUniforms );
+		
+		if ( this.BackgroundTexture )
+		{
+			let MaskTexture = this.BackgroundTexture;
+			let MaskShader = Pop.GetShader( RenderTarget, MaskShaderSource );
+			let SetUniforms = function(Shader)
+			{
+				Shader.SetUniform("Texture", MaskTexture );
+			}
+			RenderTarget.EnableBlend(true);
+			RenderTarget.DrawQuad( MaskShader, SetUniforms );
+		}
+		
 	}
 	
 	this.ProcessNextFrame = async function(FrameBuffer)
@@ -119,10 +136,11 @@ function TCameraWindow(CameraName)
 				
 				NewTexures[0].Resize(368,368);
 				NewTexures[0].SetFormat('Greyscale');
-				const Pose = await Coreml.OpenPose(NewTexures[0]);
-				//Pop.Debug("Pose",JSON.stringify(Pose));
+				const Pose = await Coreml.OpenPoseMap(NewTexures[0], 'Background');
+				Pop.Debug("Pose",JSON.stringify(Pose));
 				
-				this.Textures = NewTexures;
+				this.VideoTextures = NewTexures;
+				this.BackgroundTexture = Pose;
 				this.CameraFrameCounter.Add();
 			}
 			catch(e)
