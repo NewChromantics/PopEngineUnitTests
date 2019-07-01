@@ -59,6 +59,7 @@ async function Run(Filename,EncodePreset)
 	Input.SetFormat('Greyscale');
 	InputImage = Input;
 	const Encoder = new Pop.Media.H264Encoder(EncodePreset);
+	Pop.Debug("H264 encoder version: " + Encoder.Version );
 	await Encoder.Encode(Input,0);
 
 	const Decoder = new Pop.Media.AvcDecoder();
@@ -67,11 +68,12 @@ async function Run(Filename,EncodePreset)
 	while ( true )
 	{
 		const Packet = await Encoder.GetNextPacket();
-		//Pop.Debug("Packet",typeof Packet);
+		//Pop.Debug("Got Encoder Packet",JSON.stringify(Packet));
 		if ( !Packet )
 			continue;
+		
 		const ExtractPlanes = false;
-		const Frames = await Decoder.Decode(Packet,ExtractPlanes);
+		const Frames = await Decoder.Decode(Packet.Data,ExtractPlanes);
 		Pop.Debug(JSON.stringify(Frames));
 		if ( Frames.length == 0 )
 			continue;
