@@ -192,3 +192,32 @@ Window.OnMouseMove = function(x,y,Button)
 		OnCameraZoom( x, y, false );
 };
 
+
+
+async function LeapMotionLoop()
+{
+	let Leap = null;
+	while ( true )
+	{
+		try
+		{
+			if ( !Leap )
+			{
+				//	gr: todo: turn this into an "xr" device
+				//			new Pop.Xr.Input("LeapMotion")
+				Leap = new Pop.LeapMotion.Input();
+			}
+			
+			const NextFrame = await Leap.GetNextFrame();
+			Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
+		}
+		catch(e)
+		{
+			Pop.Debug("Leap error",e);
+			Leap = null;
+			await Pop.Yield(100);
+		}
+	}
+}
+LeapMotionLoop().then(Pop.Debug).catch(Pop.Debug);
+
