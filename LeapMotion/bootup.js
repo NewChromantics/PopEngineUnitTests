@@ -137,6 +137,7 @@ function CreateCubeGeometry(RenderTarget)
 
 let Camera = new TCamera();
 let Cube = null;
+let LastHandFrame = null;
 
 function GetCube(RenderTarget)
 {
@@ -148,11 +149,38 @@ function GetCube(RenderTarget)
 
 function GetCubePositions()
 {
-	return [ [0,0,0] ];
+	if ( !LastHandFrame )
+		return [ [0,0,0] ];
+	
+	let Positions = [];
+	
+	let EnumHand = function(Hand)
+	{
+		if ( !Hand )
+			return;
+
+		let EnumJoint = function(JointName)
+		{
+			//	skip over non-positions
+			const xyz = Hand[JointName];
+			if ( !Array.isArray(xyz) && xyz.constructor != Float32Array )
+				return;
+			
+			//	gr: engine doesnt take Float32Array??
+			Positions.push( Array.from(xyz) );
+		}
+		let Joints = Object.keys(Hand);
+		Joints.forEach( EnumJoint );
+	}
+	EnumHand( LastHandFrame.Left );
+	EnumHand( LastHandFrame.Right );
+	//Pop.Debug("Got positions x",Positions.length,Positions[0]);
+	return Positions;
 }
 
 function Render(RenderTarget)
 {
+	RenderTarget.ClearColour( 0,0,0 );
 	const Shader = Pop.GetShader( RenderTarget, CubeFragShader, CubeVertShader );
 	const CubeGeo = GetCube(RenderTarget);
 	const Viewport = RenderTarget.GetScreenRect();
@@ -209,7 +237,8 @@ async function LeapMotionLoop()
 			}
 			
 			const NextFrame = await Leap.GetNextFrame();
-			Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
+			LastHandFrame = NextFrame;
+			//Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
 		}
 		catch(e)
 		{
