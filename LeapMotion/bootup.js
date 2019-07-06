@@ -6,6 +6,7 @@ Pop.Include = function(Filename)
 
 Pop.Include('../PopEngineCommon/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopMath.js');
+Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 const CubeFragShader = Pop.LoadFileAsString('Cube.frag.glsl');
 const CubeVertShader = Pop.LoadFileAsString('Cube.vert.glsl');
 
@@ -225,6 +226,7 @@ Window.OnMouseMove = function(x,y,Button)
 async function LeapMotionLoop()
 {
 	let Leap = null;
+	let FrameCounter = new Pop.FrameCounter("Leap Motion");
 	while ( true )
 	{
 		try
@@ -238,6 +240,7 @@ async function LeapMotionLoop()
 			
 			const NextFrame = await Leap.GetNextFrame();
 			LastHandFrame = NextFrame;
+			FrameCounter.Add();
 			//Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
 		}
 		catch(e)
