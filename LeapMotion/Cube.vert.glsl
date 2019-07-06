@@ -6,8 +6,8 @@ uniform float3 CameraWorldPos;
 uniform mat4 CameraProjectionMatrix;
 uniform float3 Transform_WorldPosition;
 
-uniform float LocalScale = 5;
-uniform float WorldScale = 0.05;
+uniform float LocalScale = 0.01;
+uniform float WorldScale = 1;
 
 void main()
 {

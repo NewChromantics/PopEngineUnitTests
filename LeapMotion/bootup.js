@@ -12,7 +12,7 @@ const CubeVertShader = Pop.LoadFileAsString('Cube.vert.glsl');
 function TCamera()
 {
 	this.FovVertical = 45;
-	this.Position = [ -4,4,20 ];
+	this.Position = [ 0,0.2,1 ];
 	this.LookAt = [ 0,0,0 ];
 	this.NearDistance = 0.01;
 	this.FarDistance = 100;
