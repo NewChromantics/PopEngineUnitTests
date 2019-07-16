@@ -5,11 +5,11 @@ Pop.Include = function(Filename)
 	return Pop.CompileAndRun( Source, Filename );
 }
 
-Pop.Include('../Common/PopEngine.js');
-Pop.Include('../Common/PopShaderCache.js');
-Pop.Include('../Common/TFrameCounter.js');
+//Pop.Include('../PopEngineCommon/PopEngine.js');
+Pop.Include('../PopEngineCommon/PopShaderCache.js');
+Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 Pop.Include('CameraTest.js');
-Pop.Include('../Common/MemCheckLoop.js');
+Pop.Include('../PopEngineCommon/MemCheckLoop.js');
 
 
 

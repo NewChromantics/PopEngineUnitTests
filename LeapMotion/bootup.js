@@ -7,72 +7,9 @@ Pop.Include = function(Filename)
 Pop.Include('../PopEngineCommon/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopMath.js');
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
+Pop.Include('../PopEngineCommon/PopCamera.js');
 const CubeFragShader = Pop.LoadFileAsString('Cube.frag.glsl');
 const CubeVertShader = Pop.LoadFileAsString('Cube.vert.glsl');
-
-function TCamera()
-{
-	this.FovVertical = 45;
-	this.Position = [ 0,0.2,1 ];
-	this.LookAt = [ 0,0,0 ];
-	this.NearDistance = 0.01;
-	this.FarDistance = 100;
-	
-	this.GetProjectionMatrix = function(ViewRect)
-	{
-		let Aspect = ViewRect[2] / ViewRect[3];
-		
-		let f = 1.0 / Math.tan( Math.radians(this.FovVertical) / 2);
-		let nf = 1 / (this.NearDistance - this.FarDistance);
-		
-		let Matrix = [];
-		Matrix[0] = f / Aspect;
-		Matrix[1] = 0;
-		Matrix[2] = 0;
-		Matrix[3] = 0;
-		Matrix[4] = 0;
-		Matrix[5] = f;
-		Matrix[6] = 0;
-		Matrix[7] = 0;
-		Matrix[8] = 0;
-		Matrix[9] = 0;
-		Matrix[10] = (this.FarDistance + this.NearDistance) * nf;
-		Matrix[11] = -1;
-		Matrix[12] = 0;
-		Matrix[13] = 0;
-		Matrix[14] = 2 * this.FarDistance * this.NearDistance * nf;
-		Matrix[15] = 0;
-		
-		return Matrix;
-	}
-}
-
-
-function OnCameraPan(x,y,FirstClick)
-{
-	if ( FirstClick )
-		Camera.LastPanPos = [x,y];
-	
-	let Deltax = Camera.LastPanPos[0] - x;
-	let Deltay = Camera.LastPanPos[1] - y;
-	Camera.Position[0] += Deltax * 0.01
-	Camera.Position[1] -= Deltay * 0.01
-	
-	Camera.LastPanPos = [x,y];
-}
-
-function OnCameraZoom(x,y,FirstClick)
-{
-	if ( FirstClick )
-		Camera.LastZoomPos = [x,y];
-	
-	let Deltax = Camera.LastZoomPos[0] - x;
-	let Deltay = Camera.LastZoomPos[1] - y;
-	//Camera.Position[0] -= Deltax * 0.01
-	Camera.Position[2] -= Deltay * 0.01
-	
-	Camera.LastZoomPos = [x,y];
-}
 
 
 function CreateCubeGeometry(RenderTarget)
@@ -136,7 +73,7 @@ function CreateCubeGeometry(RenderTarget)
 }
 
 
-let Camera = new TCamera();
+let Camera = new Pop.Camera();
 let Cube = null;
 let LastHandFrame = null;
 
@@ -167,6 +104,14 @@ function GetCubePositions()
 			if ( !Array.isArray(xyz) && xyz.constructor != Float32Array )
 				return;
 			
+			let JointFilter =
+			[
+				'Thumb3','Middle3','Ring3','Pinky3','Index3'
+			];
+			if ( !JointFilter.includes(JointName) )
+				return;
+			
+			Pop.Debug(JointName);
 			//	gr: engine doesnt take Float32Array??
 			Positions.push( Array.from(xyz) );
 		}
@@ -208,17 +153,17 @@ Window.OnRender = Render;
 Window.OnMouseDown = function(x,y,Button)
 {
 	if ( Button == 0 )
-		OnCameraPan( x, y, true );
+		Camera.OnCameraPan( x, y, true );
 	if ( Button == 1 )
-		OnCameraZoom( x, y, true );
+		Camera.OnCameraZoom( x, y, true );
 }
 
 Window.OnMouseMove = function(x,y,Button)
 {
 	if ( Button == 0 )
-		OnCameraPan( x, y, false );
+		Camera.OnCameraPan( x, y, false );
 	if ( Button == 1 )
-		OnCameraZoom( x, y, false );
+		Camera.OnCameraZoom( x, y, false );
 };
 
 

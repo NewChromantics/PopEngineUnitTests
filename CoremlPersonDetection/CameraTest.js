@@ -19,7 +19,7 @@ function TCameraWindow(CameraName)
 {
 	this.VideoTextures = [];
 	this.BackgroundTexture = null;
-	this.CameraFrameCounter = new TFrameCounter( CameraName );
+	this.CameraFrameCounter = new Pop.FrameCounter( CameraName );
 
 	this.OnRender = function(RenderTarget)
 	{
