@@ -8,15 +8,29 @@ let KinectDepthFragShader = Pop.LoadFileAsString('KinectDepth.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 let GreyscaleFragShader = Pop.LoadFileAsString('Greyscale.frag.glsl');
+let BlitColourFragShader = Pop.LoadFileAsString('BlitColour.frag.glsl');
 
 let MaskShaderSource = Pop.LoadFileAsString('Mask.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
 
+function GetRectsFromObjects(PoseObjects)
+{
+	let Rects = [];
+	
+	let GetRect = function(Obj)
+	{
+		Rects.push( [Obj.x,Obj.y,Obj.w,Obj.h] );
+	}
+	PoseObjects.forEach( GetRect );
+
+	return Rects;
+}
 
 function TCameraWindow(CameraName)
 {
+	this.Rects = [];
 	this.VideoTextures = [];
 	this.BackgroundTexture = null;
 	this.CameraFrameCounter = new Pop.FrameCounter( CameraName );
@@ -71,7 +85,7 @@ function TCameraWindow(CameraName)
 		
 
 		{
-			let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
+			let FragShader = Pop.GetShader( RenderTarget, ShaderSource, VertShader );
 			let SetUniforms = function(Shader)
 			{
 				Shader.SetUniform("Texture", Texture0 );
@@ -88,13 +102,31 @@ function TCameraWindow(CameraName)
 		if ( this.BackgroundTexture )
 		{
 			let MaskTexture = this.BackgroundTexture;
-			let MaskShader = Pop.GetShader( RenderTarget, MaskShaderSource );
+			let MaskShader = Pop.GetShader( RenderTarget, MaskShaderSource, VertShader );
 			let SetUniforms = function(Shader)
 			{
 				Shader.SetUniform("Texture", MaskTexture );
 			}
 			RenderTarget.EnableBlend(true);
 			RenderTarget.DrawQuad( MaskShader, SetUniforms );
+		}
+		
+		//	draw rects
+		if ( this.Rects.length )
+		{
+			let RectShader = Pop.GetShader( RenderTarget, BlitColourFragShader, VertShader );
+
+			let DrawRect = function(Rect)
+			{
+				let SetUniforms = function(Shader)
+				{
+					Shader.SetUniform("Colour", [0,1,0,0.4] );
+					Shader.SetUniform("VertexRect",Rect );
+				}
+				RenderTarget.DrawQuad( RectShader, SetUniforms );
+			}
+			RenderTarget.EnableBlend(true);
+			this.Rects.forEach( DrawRect );
 		}
 		
 	}
@@ -133,14 +165,32 @@ function TCameraWindow(CameraName)
 				const NewTexures = await this.ProcessNextFrame(fb);
 				if ( !NewTexures )
 					continue;
+				/*
+				{
+					NewTexures[0].Resize(368,368);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.OpenPoseMap(NewTexures[0], 'Background');
+					Pop.Debug("Pose",JSON.stringify(Pose));
+				}
 				
-				NewTexures[0].Resize(368,368);
-				NewTexures[0].SetFormat('Greyscale');
-				const Pose = await Coreml.OpenPoseMap(NewTexures[0], 'Background');
-				Pop.Debug("Pose",JSON.stringify(Pose));
+				{
+					NewTexures[0].Resize(416,416);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.Yolo(NewTexures[0], 'Background');
+					Pop.Debug("Pose",JSON.stringify(Pose));
+				}
+				 */
+				{
+					//NewTexures[0].Resize(512,512);
+					NewTexures[0].SetFormat('Greyscale');
+					//NewTexures[0].SetFormat('RGB');
+					const Pose = await Coreml.AppleVisionFaceDetect(NewTexures[0]);
+					Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose );
+				}
 				
 				this.VideoTextures = NewTexures;
-				this.BackgroundTexture = Pose;
+				//this.BackgroundTexture = Pose;
 				this.CameraFrameCounter.Add();
 			}
 			catch(e)
