@@ -15,13 +15,16 @@ let MaskShaderSource = Pop.LoadFileAsString('Mask.frag.glsl');
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
 
-function GetRectsFromObjects(PoseObjects)
+function GetRectsFromObjects(PoseObjects,MinScore)
 {
+	MinScore = MinScore || 0;
 	let Rects = [];
 	
 	let GetRect = function(Obj)
 	{
-		Rects.push( [Obj.x,Obj.y,Obj.w,Obj.h] );
+		if ( Obj.Score < MinScore )
+			return;
+		Rects.push( [Obj.x,Obj.y,Obj.w,Obj.h,Obj.Score] );
 	}
 	PoseObjects.forEach( GetRect );
 
@@ -116,12 +119,26 @@ function TCameraWindow(CameraName)
 		{
 			let RectShader = Pop.GetShader( RenderTarget, BlitColourFragShader, VertShader );
 
+			let ScoreToRedGreen = function(Score,Alpha)
+			{
+				Score /= 0.6;
+				if ( Score < 0.5 )
+				{
+					Score /= 0.5;
+					return [1,Score,0,Alpha];
+				}
+				Score -= 0.5;
+				Score /= 0.5;
+				return [1-Score,1,0,Alpha];
+			}
+			
 			let DrawRect = function(Rect)
 			{
+				let Colour = ScoreToRedGreen( Rect[4], 0.1 );
 				let SetUniforms = function(Shader)
 				{
-					Shader.SetUniform("Colour", [0,1,0,0.4] );
-					Shader.SetUniform("VertexRect",Rect );
+					Shader.SetUniform("Colour", Colour );
+					Shader.SetUniform("VertexRect",Rect.slice(0,4) );
 				}
 				RenderTarget.DrawQuad( RectShader, SetUniforms );
 			}
@@ -172,20 +189,54 @@ function TCameraWindow(CameraName)
 					const Pose = await Coreml.OpenPoseMap(NewTexures[0], 'Background');
 					Pop.Debug("Pose",JSON.stringify(Pose));
 				}
-				
+				*/
+				if ( false )
 				{
 					NewTexures[0].Resize(416,416);
 					NewTexures[0].SetFormat('Greyscale');
-					const Pose = await Coreml.Yolo(NewTexures[0], 'Background');
+					const Pose = await Coreml.Yolo(NewTexures[0]);
 					Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose, 0.2 );
 				}
-				 */
+				if ( false )
+				{
+					NewTexures[0].Resize(368,368);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.OpenPose(NewTexures[0]);
+					Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose, 0 );
+				}
+				if ( true )
+				{
+					NewTexures[0].Resize(192,192);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.Hourglass(NewTexures[0]);
+					Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose, 0 );
+				}
+				if ( false )
+				{
+					NewTexures[0].Resize(300,300);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.SsdMobileNet(NewTexures[0]);
+					Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose, 0 );
+				}
+				if ( false )
+				{
+					NewTexures[0].Resize(192,192);
+					NewTexures[0].SetFormat('Greyscale');
+					const Pose = await Coreml.Cpm(NewTexures[0]);
+					//Pop.Debug("Pose",JSON.stringify(Pose));
+					this.Rects = GetRectsFromObjects( Pose, 0 );
+				}
+				if ( false )
 				{
 					//NewTexures[0].Resize(512,512);
 					NewTexures[0].SetFormat('Greyscale');
 					//NewTexures[0].SetFormat('RGB');
 					const Pose = await Coreml.AppleVisionFaceDetect(NewTexures[0]);
-					Pop.Debug("Pose",JSON.stringify(Pose));
+					//Pop.Debug("Pose",JSON.stringify(Pose));
 					this.Rects = GetRectsFromObjects( Pose );
 				}
 				
