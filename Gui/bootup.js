@@ -26,3 +26,23 @@ TickBox.OnChanged = function(Value)
 	TickLabel.SetValue("Tickbox = " + Value);
 }
 
+
+
+let Colour = [0,128,255];
+let ColourBox = new Pop.Gui.TickBox( Window, [0,280,600,80] );
+let ColourLabel = new Pop.Gui.Label( Window, [0,200,600,30] );
+ColourBox.SetValue(false);
+ColourBox.OnChanged = function(Value)
+{
+	let ColourPicker = new Pop.Gui.ColourPicker( Colour );
+	ColourPicker.OnChanged = function(Value)
+	{
+		Colour = Value;
+		ColourLabel.SetValue("Rgb = " + Colour[0] + "," + Colour[1] + "," + Colour[2] );
+	}
+	ColourPicker.OnClosed = function()
+	{
+		ColourBox.SetValue(false);
+	}
+}
+
