@@ -11,31 +11,36 @@ function TVideoWindow(Filename)
 {
 	this.Textures = [ Pop.CreateColourTexture([0,255,255,255]) ];
 	
+	this.Media = new Pop.Media.VideoSource( Filename );
 	
-	this.OnNewFrame = function(Frame)
+	this.Loop = async function()
 	{
-		if ( this.Textures )
+		while ( true )
 		{
-			this.Textures = null;
-		}
-		
-		if ( Frame.Planes !== undefined )
-		{
-			//Pop.Debug("New frame of planes");
-			this.Textures = Frame.Planes;
-		}
-		else
-		{
-			//Pop.Debug("New frame of single image");
-			this.Textures = [Frame];
+			const Frame = await this.Media.GetNextFrame();
+			Pop.Debug("New frame", Frame);
+			if ( Frame.Planes !== undefined )
+			{
+				Pop.Debug("New frame of planes");
+				this.Textures = Frame.Planes;
+			}
+			else
+			{
+				Pop.Debug("New frame of single image");
+				this.Textures = [Frame];
+			}
 		}
 	}
 	
-	let ExtractPlanes = false;
-	this.Video = new TVideoLoop( Filename, this.OnNewFrame.bind(this), ExtractPlanes );
-	
+
 	this.OnRender = function(RenderTarget)
 	{
+		if ( !this.Textures )
+		{
+			RenderTarget.ClearColour( 1,0,0 );
+			return;
+		}
+		
 		let Texture0 = this.Textures[0];
 		let Texture1 = this.Textures[1];
 		let Texture2 = this.Textures[2];
@@ -57,7 +62,7 @@ function TVideoWindow(Filename)
 		//let FragShader = Pop.GetShader( RenderTarget, Uvy844FragShader );
 		//let FragShader = Pop.GetShader( RenderTarget, Yuv8888FragShader );
 		//let FragShader = Pop.GetShader( RenderTarget, BlitFragShader );
-		let FragShader = Pop.GetShader( RenderTarget, ShaderSource );
+		let FragShader = Pop.GetShader( RenderTarget, ShaderSource, VertShader );
 
 		let SetUniforms = function(Shader)
 		{
@@ -78,6 +83,7 @@ function TVideoWindow(Filename)
 	this.Window.OnMouseDown = function(){};
 	this.Window.OnMouseUp = function(){};
 	
+	this.Loop().then().catch(e=>Pop.Debug("Error " + e));
 }
 
 

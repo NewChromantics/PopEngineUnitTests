@@ -5,16 +5,12 @@ Pop.Include = function(Filename)
 }
 
 
-let Debug = Pop.Debug;
+Pop.Include('../PopEngineCommon/PopShaderCache.js');
+Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
-Pop.Include('../Common/PopEngine.js');
-Pop.Include('../Common/PopShaderCache.js');
-Pop.Include('../Common/TFrameCounter.js');
-//	include fake being a browser for mp4.js until we rewrite it
-Pop.Include('PopBrowser.js');
-Pop.Include('mp4.js');
-Pop.Include('Video.js');
+Pop.Include('../PopEngineCommon/PopMp4.js');
+Pop.Include('../PopEngineCommon/PopMedia.js');
+Pop.Include('../PopEngineCommon/PopTexture.js');
 Pop.Include('VideoTest.js');
-//Pop.Include('../Common/MemCheckLoop.js');
 
 
