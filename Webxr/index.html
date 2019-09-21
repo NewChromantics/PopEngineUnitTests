@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+<style>
+
+</style>
+</head>
+<body>
+	<script src='PopEngineCommon/PopWebApi.js'></script>
+	<script src='PopEngineCommon/PopWebOpenglApi.js'></script>
+	<script src='PopEngineCommon/PopWebGuiApi.js'></script>
+	<script src='PopEngineCommon/PopWebImageApi.js'></script>
+	<script src='PopEngineCommon/PopWebXrApi.js'></script>
+	<script>
+		
+		async function Bootup()
+		{
+			const AsyncAssetLoads = false;
+						
+			const PreloadAssets =
+			[
+				'bootup.js',
+			];
+			
+			//	trigger all then wait for them all to finish
+			const AssetPromises = [];
+			const Load = function(Filename)
+			{
+				const Promise = Pop.AsyncCacheAssetAsString(Filename);
+				AssetPromises.push( Promise );
+			}
+			PreloadAssets.forEach( Load );
+			await Promise.all( AssetPromises );
+			
+			let Source = await Pop.LoadFileAsStringAsync('bootup.js');
+			Pop.CompileAndRun( Source, 'bootup.js' );
+		}
+
+		Bootup().then().catch( console.error );
+	
+	</script>
+	
+</body>
+
