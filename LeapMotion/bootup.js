@@ -43,7 +43,7 @@ function CreateCubeGeometry(RenderTarget)
 	
 	//	near
 	AddTriangle( tln, trn, brn );
-	AddTriangle( brn, bln, tln );
+	AddTriangle( brn, bln, tln );/*
 	//	far
 	AddTriangle( trf, tlf, blf );
 	AddTriangle( blf, brf, trf );
@@ -61,7 +61,7 @@ function CreateCubeGeometry(RenderTarget)
 	//	right
 	AddTriangle( trn, trf, brf );
 	AddTriangle( brf, brn, trn );
-	
+	*/
 	const VertexAttributeName = "LocalPosition";
 	
 	//	loads much faster as a typed array
@@ -76,6 +76,7 @@ function CreateCubeGeometry(RenderTarget)
 let Camera = new Pop.Camera();
 let Cube = null;
 let LastHandFrame = null;
+Camera.Position = [0, 1, 10];
 
 function GetCube(RenderTarget)
 {
@@ -118,8 +119,28 @@ function GetCubePositions()
 		let Joints = Object.keys(Hand);
 		Joints.forEach( EnumJoint );
 	}
+
+	function EnumJoints(JointsArray)
+	{
+		function EnumJointByName(JointName)
+		{
+			const xyz = JointsArray[JointName];
+			if (!Array.isArray(xyz) && xyz.constructor != Float32Array)
+				return;
+			//Pop.Debug(JointName,xyz);
+			Positions.push(Array.from(xyz));
+		}
+		Object.keys(JointsArray).forEach(EnumJointByName);
+	}
+
+	//	leapmotion joint names
 	EnumHand( LastHandFrame.Left );
 	EnumHand( LastHandFrame.Right );
+
+	//	vive tracker is just names
+	EnumJoints(LastHandFrame);
+
+
 	//Pop.Debug("Got positions x",Positions.length,Positions[0]);
 	return Positions;
 }
@@ -140,7 +161,8 @@ function Render(RenderTarget)
 			Shader.SetUniform('ColourIndex', CubeIndex );
 			Shader.SetUniform('Transform_WorldPosition', Cube );
 			Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
-			Shader.SetUniform('CameraWorldPos',Camera.Position);
+			Shader.SetUniform('CameraWorldPos', Camera.Position);
+			Pop.Debug(Camera.Position);
 		}
 		RenderTarget.DrawGeometry( CubeGeo, Shader, SetUniforms );
 	}
@@ -150,24 +172,24 @@ function Render(RenderTarget)
 let Window = new Pop.Opengl.Window("Leap motion demo");
 Window.OnRender = Render;
 
+
 Window.OnMouseDown = function(x,y,Button)
 {
-	if ( Button == 0 )
-		Camera.OnCameraPan( x, y, true );
-	if ( Button == 1 )
-		Camera.OnCameraZoom( x, y, true );
+	Window.OnMouseMove(x, y, Button, true);
 }
 
-Window.OnMouseMove = function(x,y,Button)
+Window.OnMouseMove = function(x,y,Button,FirstClick=false)
 {
-	if ( Button == 0 )
-		Camera.OnCameraPan( x, y, false );
-	if ( Button == 1 )
-		Camera.OnCameraZoom( x, y, false );
+	FirstClick = FirstClick === true;
+
+	if (Button == 0)
+		Camera.OnCameraPanLocal(x, 0, y, FirstClick);
+	if (Button == 1)
+		Camera.OnCameraPanLocal(x, y, 0, FirstClick);
 };
 
 
-
+/*
 async function LeapMotionLoop()
 {
 	let Leap = null;
@@ -197,4 +219,34 @@ async function LeapMotionLoop()
 	}
 }
 LeapMotionLoop().then(Pop.Debug).catch(Pop.Debug);
+*/
+
+async function ViveHandTrackerLoop()
+{
+	let Tracker = null;
+	const Name = "Vive Hand Tracker";
+	let FrameCounter = new Pop.FrameCounter(Name);
+	while (true) 
+	{
+		try 
+		{
+			if (!Tracker)
+            {
+				Tracker = new Pop.Openvr.Skeleton();
+            }
+
+			const NextFrame = await Tracker.GetNextFrame();
+            LastHandFrame = NextFrame;
+            FrameCounter.Add();
+			Pop.Debug("New frame",JSON.stringify(NextFrame) );
+        }
+		catch (e) 
+		{
+			Pop.Debug(Name + " error", e);
+			Tracker = null;
+            await Pop.Yield(1000);
+        }
+    }
+}
+ViveHandTrackerLoop().then(Pop.Debug).catch(Pop.Debug);
 
