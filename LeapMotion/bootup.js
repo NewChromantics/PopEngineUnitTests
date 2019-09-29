@@ -43,7 +43,7 @@ function CreateCubeGeometry(RenderTarget)
 	
 	//	near
 	AddTriangle( tln, trn, brn );
-	AddTriangle( brn, bln, tln );/*
+	AddTriangle( brn, bln, tln );
 	//	far
 	AddTriangle( trf, tlf, blf );
 	AddTriangle( blf, brf, trf );
@@ -61,7 +61,7 @@ function CreateCubeGeometry(RenderTarget)
 	//	right
 	AddTriangle( trn, trf, brf );
 	AddTriangle( brf, brn, trn );
-	*/
+	
 	const VertexAttributeName = "LocalPosition";
 	
 	//	loads much faster as a typed array
@@ -76,7 +76,7 @@ function CreateCubeGeometry(RenderTarget)
 let Camera = new Pop.Camera();
 let Cube = null;
 let LastHandFrame = null;
-Camera.Position = [0, 1, 10];
+Camera.Position = [0, 1, 5];
 
 function GetCube(RenderTarget)
 {
@@ -151,18 +151,23 @@ function Render(RenderTarget)
 	const Shader = Pop.GetShader( RenderTarget, CubeFragShader, CubeVertShader );
 	const CubeGeo = GetCube(RenderTarget);
 	const Viewport = RenderTarget.GetScreenRect();
-	const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
+	const CameraToProjectionTransform = Camera.GetProjectionMatrix(Viewport);
 	let Cubes = GetCubePositions();
-	
+	const WorldToCameraTransform = Camera.GetWorldToCameraMatrix(); 
+
+
 	let RenderCube = function(Cube,CubeIndex)
 	{
+		const CubeSize = 0.01;
+		const Scale3 = [CubeSize, CubeSize, CubeSize];
+		const CubeMatrix = Math.CreateTranslationScaleMatrix(Cube, Scale3);
+
 		let SetUniforms = function(Shader)
 		{
 			Shader.SetUniform('ColourIndex', CubeIndex );
-			Shader.SetUniform('Transform_WorldPosition', Cube );
-			Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
-			Shader.SetUniform('CameraWorldPos', Camera.Position);
-			Pop.Debug(Camera.Position);
+			Shader.SetUniform('LocalToWorldTransform', CubeMatrix );
+			Shader.SetUniform('CameraToProjectionTransform', CameraToProjectionTransform );
+			Shader.SetUniform('WorldToCameraTransform', WorldToCameraTransform );
 		}
 		RenderTarget.DrawGeometry( CubeGeo, Shader, SetUniforms );
 	}
@@ -181,10 +186,13 @@ Window.OnMouseDown = function(x,y,Button)
 Window.OnMouseMove = function(x,y,Button,FirstClick=false)
 {
 	FirstClick = FirstClick === true;
+	//Pop.Debug("Mouse button ", Button, FirstClick);
 
 	if (Button == 0)
 		Camera.OnCameraPanLocal(x, 0, y, FirstClick);
 	if (Button == 1)
+		Camera.OnCameraOrbit(x, y, 0, FirstClick);
+	if (Button == 2)
 		Camera.OnCameraPanLocal(x, y, 0, FirstClick);
 };
 
@@ -238,7 +246,7 @@ async function ViveHandTrackerLoop()
 			const NextFrame = await Tracker.GetNextFrame();
             LastHandFrame = NextFrame;
             FrameCounter.Add();
-			Pop.Debug("New frame",JSON.stringify(NextFrame) );
+			//Pop.Debug("New frame",JSON.stringify(NextFrame) );
         }
 		catch (e) 
 		{
