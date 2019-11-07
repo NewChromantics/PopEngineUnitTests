@@ -135,6 +135,7 @@ function GetSkeletonLines(Skeleton,Lines,Scores)
 	 ['FaceLandmark12','FaceLandmark13'],
 	 ['FaceLandmark13','FaceLandmark14'],
 	 ['FaceLandmark14','FaceLandmark15'],
+	  ['FaceLandmark15','FaceLandmark08'],	//	close eye loop
 		//	right eye
 	['FaceLandmark16','FaceLandmark17'],
 	 ['FaceLandmark17','FaceLandmark18'],
@@ -143,6 +144,7 @@ function GetSkeletonLines(Skeleton,Lines,Scores)
 	 ['FaceLandmark20','FaceLandmark21'],
 	 ['FaceLandmark21','FaceLandmark22'],
 	 ['FaceLandmark22','FaceLandmark23'],
+	 ['FaceLandmark23','FaceLandmark16'],	//	close eye loop
 	 //['FaceLandmark23','FaceLandmark24'],
 	 //	mouth
 	 ['FaceLandmark24','FaceLandmark25'],
@@ -154,13 +156,16 @@ function GetSkeletonLines(Skeleton,Lines,Scores)
 	 ['FaceLandmark30','FaceLandmark31'],
 	 ['FaceLandmark31','FaceLandmark32'],
 	 ['FaceLandmark32','FaceLandmark33'],
-	 ['FaceLandmark33','FaceLandmark34'],
+	 ['FaceLandmark33','FaceLandmark24'],	//	close mouth loop
+	 //['FaceLandmark33','FaceLandmark34'],
+	 //teeth
 	 ['FaceLandmark34','FaceLandmark35'],
 	 ['FaceLandmark35','FaceLandmark36'],
 	 ['FaceLandmark36','FaceLandmark37'],
 	 ['FaceLandmark37','FaceLandmark38'],
 	 ['FaceLandmark38','FaceLandmark39'],
-	
+	 ['FaceLandmark39','FaceLandmark34'],	//	close teeth loop
+
 	 //	chin
 	 //['FaceLandmark39','FaceLandmark40'],
 	 ['FaceLandmark40','FaceLandmark41'],
@@ -190,9 +195,8 @@ function GetSkeletonLines(Skeleton,Lines,Scores)
 	 ['FaceLandmark60','FaceLandmark61'],
 	 ['FaceLandmark61','FaceLandmark62'],
 	 
-	 //['FaceLandmark62','FaceLandmark63'],
-	 
 	 //	eyes
+	 //['FaceLandmark62','FaceLandmark63'],
 	 ['FaceLandmark63','FaceLandmark64'],
 	];
 	Bones.forEach( PushBone );
@@ -284,7 +288,7 @@ function TCameraWindow(CameraName)
 				
 				const Face = await Coreml.AppleVisionFaceDetect( Luma );
 				this.Skeleton = LabelsToSkeleton( Face );
-				Pop.Debug(JSON.stringify(this.Skeleton));
+				//Pop.Debug(JSON.stringify(this.Skeleton));
 				this.VideoTexture = Luma;
 				this.CameraFrameCounter.Add();
 			}
