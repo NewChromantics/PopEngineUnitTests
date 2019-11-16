@@ -6,10 +6,10 @@ Pop.Include = function(Filename)
 	const Source = Pop.LoadFileAsString(Filename);
 	return Pop.CompileAndRun( Source, Filename );
 }
-Pop.Include("Common/TFrameCounter.js");
+Pop.Include("PopEngineCommon/PopFrameCounter.js");
 
-let UpdateCounter = new TFrameCounter("Update");
-let RenderCounter = new TFrameCounter("Render");
+let UpdateCounter = new Pop.FrameCounter("Update");
+let RenderCounter = new Pop.FrameCounter("Render");
 
 let Colour = 0;
 
