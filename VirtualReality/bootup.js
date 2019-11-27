@@ -14,6 +14,18 @@ Window.OnRender = function (RenderTarget)
 //	render
 let Hmd = new Pop.Openvr.Hmd("Device Name", Window);
 
+Hmd.OnPoses = function (Poses)
+{
+	function EnumPose(Pose, Index)
+	{
+		if (!Pose.IsConnected)
+			return;
+		Pop.Debug(`Device ${Index} connected; valid=${Pose.IsValidPose}`);
+	}
+	Poses.forEach(EnumPose);
+	//Pop.Debug("New JS Poses x" + Poses.length);
+}
+
 Hmd.OnRender = function(RenderTarget,Camera)
 {
 	if ( Camera.Name == "Left" )
