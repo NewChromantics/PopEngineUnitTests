@@ -2,11 +2,17 @@
 Pop.Debug("Virtual Reality Test");
 
 
+const Window = new Pop.Opengl.Window("VR!");
+
+Window.OnRender = function (RenderTarget)
+{
+	RenderTarget.ClearColour(0, 1, 1);
+}
 //	find devices
 //	attach to device
 //	get updates
 //	render
-let Hmd = new Pop.Openvr.Hmd("Device Name");
+let Hmd = new Pop.Openvr.Hmd("Device Name", Window);
 
 Hmd.OnRender = function(RenderTarget,Camera)
 {
