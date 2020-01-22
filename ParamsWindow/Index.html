@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="Web/win95.css" />
+    <link rel="stylesheet" type="text/css" href="Web/Hud.css" />
+    <style>
+        #Error {
+            background: #fcc;
+            padding: 1em;
+            border: solid 1px #ccc;
+        }
+    </style>
+    <script src='PopEngineCommon/PopWebApi.js'></script>
+    <script src='PopEngineCommon/PopApi.js'></script>
+    <script src='PopEngineCommon/PopMath.js'></script>
+    <script src='PopEngineCommon/PopWebGuiApi.js'></script>
+    <script src='PopEngineCommon/ParamsWindow.js'></script>
+</head>
+<body>
+    <div id="Error" style="visibility:hidden"> Unspecified Error</div>
+    Loading initial state...
+    <script>
+        function OnError(Error)
+        {
+            const Div = document.getElementById('Error');
+            Div.innerText = Error;
+            Div.style.visibility = 'visible';
+            console.error("Error",Error);
+        }
+
+        function OnParamChanged(Changed)
+        {
+            // relay change to server
+        }
+
+        let Params = {
+        }
+
+            ;
+        let ParamsWindow = null;
+        async function Startup()
+        {
+            const InitialParams_Response = await fetch('Params.json');
+            if (!InitialParams_Response.ok) throw "Fetching Params.json returned " + InitialParams_Response.status + "/" + InitialParams_Response.statusText;
+            const InitialParams = await InitialParams_Response.json();
+            Params = InitialParams;
+            console.log(Params);
+            ParamsWindow = new Pop.ParamsWindow(Params,OnParamChanged);
+            // gr: need to fetch meta with Params.json ParamsWindow.AddParam('Cat');
+            ParamsWindow.AddParam('Cat');
+            ParamsWindow.AddParam('Name');
+        }
+
+        Startup().then().catch(OnError);
+    </script>
+</body>
+</html>
