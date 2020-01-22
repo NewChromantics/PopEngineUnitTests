@@ -35,7 +35,7 @@ ParamsWindow.AddParam('WholeDegrees',-180,180,Math.floor);
 ParamsWindow.AddParam('OneToThree',1,3,Math.floor);
 ParamsWindow.AddParam('BouncingNumber',-1,1);
 //ParamsWindow.AddParam('TheColour','Colour');
-//ParamsWindow.AddParam('TheString');
+ParamsWindow.AddParam('TheString');
 //ParamsWindow.AddParam('TheButton','Button');
 
 
