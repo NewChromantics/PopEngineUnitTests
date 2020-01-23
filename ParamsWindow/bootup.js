@@ -7,6 +7,9 @@ Pop.Include = function(Filename)
 Pop.Include('../PopEngineCommon/PopMath.js');
 Pop.Include('../PopEngineCommon/ParamsWindow.js');
 
+
+const ParamsFilename = "SavedParams.json.txt";
+
 const Params = {};
 Params.BooleanOne = true;
 Params.BooleanTwo = false;
@@ -19,15 +22,33 @@ Params.TheColour = [1,0.5,0.1];
 Params.TheString = 'hello';
 Params.TheButton = 'Click me';
 
+function SaveSettings(Params)
+{
+	const Json = JSON.stringify(Params,null,'\t');
+	Pop.WriteStringToFile(ParamsFilename,Json);
+}
+
 function OnParamChanged(Params,ChangedParam,Value,IsFinalValue)
 {
 	if (IsFinalValue)
-		Pop.Debug("SaveSettings:",ChangedParam,Params[ChangedParam]);
+	{
+		//Pop.Debug("SaveSettings:",ChangedParam,Params[ChangedParam]);
+		try
+		{
+			SaveSettings(Params);
+			Pop.Debug(`Saved settings (${ChangedParam} changed)`);
+		}
+		catch (e)
+		{
+			Pop.Debug("Error saving params",e);
+		}
+	}
 }
 
 //	create window
 const ParamsWindow = new CreateParamsWindow(Params,OnParamChanged);
 ParamsWindow.AddParam('BooleanOne');
+ParamsWindow.AddParam('BooleanTwo');
 ParamsWindow.AddParam('ZeroToOne',0,1);
 ParamsWindow.AddParam('Degrees',-180,180);
 ParamsWindow.AddParam('WholeDegrees',-180,180,Math.floor);
@@ -53,6 +74,23 @@ async function AutoChangeValue()
 AutoChangeValue().then(Pop.Debug).catch(Pop.Debug);
 
 //	load settings
+function LoadSettings(Filename)
+{
+	const Contents = Pop.LoadFileAsString(Filename);
+	//	jsondiff would be good here
+	const NewParams = JSON.parse(Contents);
+	Object.assign(Params,NewParams);
+	ParamsWindow.OnParamsChanged();
+	Pop.Debug("Loaded settings",Filename);
+}
+try
+{
+	LoadSettings(ParamsFilename);
+}
+catch (e)
+{
+	Pop.Debug("Error loading saved params",e);
+}
 
 //	create remote HTTP controller
 const HttpServer = RunParamsHttpServer(Params,OnParamChanged);

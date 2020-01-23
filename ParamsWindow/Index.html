@@ -33,17 +33,15 @@
             // relay change to server
         }
 
-        let Params = {
-        }
+        let Params = {};
 
-            ;
         let ParamsWindow = null;
         async function Startup()
         {
             const InitialParams_Response = await fetch('Params.json');
             if (!InitialParams_Response.ok) throw "Fetching Params.json returned " + InitialParams_Response.status + "/" + InitialParams_Response.statusText;
             const InitialParams = await InitialParams_Response.json();
-            Params = InitialParams;
+            Object.assign( Params,InitialParams);
             console.log(Params);
             ParamsWindow = new Pop.ParamsWindow(Params,OnParamChanged);
             // gr: need to fetch meta with Params.json ParamsWindow.AddParam('Cat');
