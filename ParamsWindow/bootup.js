@@ -95,6 +95,6 @@ catch (e)
 }
 
 //	create remote HTTP controller
-const HttpServer = RunParamsHttpServer(Params,OnParamChanged);
+const HttpServer = RunParamsHttpServer(Params,ParamsWindow,OnParamChanged);
 Pop.Debug("Showing web page at url",HttpServer.GetUrl());
 const ShowWebPage = Pop.ShowWebPage(HttpServer.GetUrl());

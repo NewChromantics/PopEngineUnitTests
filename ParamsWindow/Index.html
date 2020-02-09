@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" type="text/css" href="Web/win95.css" />
-    <link rel="stylesheet" type="text/css" href="Web/Hud.css" />
+    <link rel="stylesheet" type="text/css" href="win95.css" />
     <style>
         #Error {
             background: #fcc;
@@ -35,18 +34,51 @@
 
         let Params = {};
 
+        async function FetchJson(Url)
+        {
+            const Response = await fetch(Url);
+            if (!Response.ok)
+                throw "Fetching " + Url + " returned " + Response.status + "/" + Response.statusText;
+            const Json = await Response.json();
+            return Json;
+        }
+
         let ParamsWindow = null;
         async function Startup()
         {
-            const InitialParams_Response = await fetch('Params.json');
-            if (!InitialParams_Response.ok) throw "Fetching Params.json returned " + InitialParams_Response.status + "/" + InitialParams_Response.statusText;
-            const InitialParams = await InitialParams_Response.json();
+            const InitialParams = await FetchJson('Params.json');
             Object.assign( Params,InitialParams);
             console.log(Params);
+
+            const ParamMetas = await FetchJson('ParamMetas.json');
+
             ParamsWindow = new Pop.ParamsWindow(Params,OnParamChanged);
             // gr: need to fetch meta with Params.json ParamsWindow.AddParam('Cat');
-            ParamsWindow.AddParam('Cat');
-            ParamsWindow.AddParam('Name');
+            const Keys = Object.keys(Params);
+
+            function FixMetaFunction(Meta)
+            {
+                if (typeof Meta != "string")
+                    return Meta;
+                if (!Meta.startsWith('function:'))
+                    return Meta;
+
+                //  automate this!
+                const FunctionMap = {};
+                FunctionMap['function:floor'] = Math.floor;
+                if (!FunctionMap.hasOwnProperty(Meta))
+                    return Meta;
+                return FunctionMap[Meta];
+            }
+
+            function AddParam(Param)
+            {
+                //  todo: need to turn meta functions like Math.floor into a function
+                let Meta = ParamMetas[Param] ? ParamMetas[Param] : [];
+                Meta = Meta.map(FixMetaFunction);
+                ParamsWindow.AddParam(Param,...Meta);
+            }
+            Keys.forEach(AddParam);
         }
 
         Startup().then().catch(OnError);
