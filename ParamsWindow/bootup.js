@@ -7,6 +7,8 @@ Pop.Include = function(Filename)
 Pop.Include('../PopEngineCommon/PopMath.js');
 Pop.Include('../PopEngineCommon/ParamsWindow.js');
 
+const DebugWindow = new Pop.Engine.StatsWindow();
+
 
 const ParamsFilename = "SavedParams.json.txt";
 
@@ -94,3 +96,5 @@ catch (e)
 
 //	create remote HTTP controller
 const HttpServer = RunParamsHttpServer(Params,OnParamChanged);
+Pop.Debug("Showing web page at url",HttpServer.GetUrl());
+const ShowWebPage = Pop.ShowWebPage(HttpServer.GetUrl());
