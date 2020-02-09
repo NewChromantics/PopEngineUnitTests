@@ -5,6 +5,7 @@ Pop.Include = function(Filename)
 	return Pop.CompileAndRun( Source, Filename );
 }
 Pop.Include('../PopEngineCommon/PopMath.js');
+Pop.Include('../PopEngineCommon/PopApi.js');
 Pop.Include('../PopEngineCommon/ParamsWindow.js');
 
 const DebugWindow = new Pop.Engine.StatsWindow();
@@ -95,6 +96,6 @@ catch (e)
 }
 
 //	create remote HTTP controller
-const HttpServer = RunParamsHttpServer(Params,ParamsWindow,OnParamChanged);
+const HttpServer = RunParamsHttpServer(Params,ParamsWindow);
 Pop.Debug("Showing web page at url",HttpServer.GetUrl());
 const ShowWebPage = Pop.ShowWebPage(HttpServer.GetUrl());

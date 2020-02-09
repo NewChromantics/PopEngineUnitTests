@@ -13,6 +13,7 @@
     <script src='PopEngineCommon/PopApi.js'></script>
     <script src='PopEngineCommon/PopMath.js'></script>
     <script src='PopEngineCommon/PopWebGuiApi.js'></script>
+    <script src='PopEngineCommon/PopWebSocketApi.js'></script>
     <script src='PopEngineCommon/ParamsWindow.js'></script>
 </head>
 <body>
@@ -27,12 +28,17 @@
             console.error("Error",Error);
         }
 
+        let Params = {};
+        let ParamMetas = null;
+        let ParamsWindow = null;
+
+        let OnParamChangedFunc = null;
         function OnParamChanged(Changed)
         {
             // relay change to server
+            if (OnParamChangedFunc)
+                OnParamChangedFunc(Changed);
         }
-
-        let Params = {};
 
         async function FetchJson(Url)
         {
@@ -42,17 +48,22 @@
             const Json = await Response.json();
             return Json;
         }
-
-        let ParamsWindow = null;
-        async function Startup()
+        async function FetchString(Url)
         {
-            const InitialParams = await FetchJson('Params.json');
-            Object.assign( Params,InitialParams);
-            console.log(Params);
+            const Response = await fetch(Url);
+            if (!Response.ok)
+                throw "Fetching " + Url + " returned " + Response.status + "/" + Response.statusText;
+            const Json = await Response.text();
+            return Json;
+        }
 
-            const ParamMetas = await FetchJson('ParamMetas.json');
+        function OnFirstParams(NewParams)
+        {
+            Object.assign(Params,NewParams);
 
+            //ParamMetas = await FetchJson('ParamMetas.json');
             ParamsWindow = new Pop.ParamsWindow(Params,OnParamChanged);
+
             // gr: need to fetch meta with Params.json ParamsWindow.AddParam('Cat');
             const Keys = Object.keys(Params);
 
@@ -79,6 +90,49 @@
                 ParamsWindow.AddParam(Param,...Meta);
             }
             Keys.forEach(AddParam);
+        }
+
+        async function SetParams(NewParams)
+        {
+            //  if we don't have meta yet, fetch it (first set of params)
+            if (!ParamMetas || !ParamsWindow)
+            {
+                ParamMetas = await FetchJson('ParamMetas.json');
+                OnFirstParams(NewParams);
+            }
+
+            //  update params, and update window
+            Object.assign(Params,NewParams);
+            ParamsWindow.OnParamsChanged();
+        }
+
+        async function Startup()
+        {
+            const WebsocketUrl = await FetchString('Websocket.json');
+
+            const InitialParams = await FetchJson('Params.json');
+
+            await SetParams(InitialParams);
+
+            //  create websocket loop
+            //while (true)
+            {
+                const Socket = new Pop.Websocket.Client(WebsocketUrl);
+                await Socket.WaitForConnect();
+                OnParamChangedFunc = function (Params,ChangedParam,FinalValue)
+                {
+                    const ParamsString = JSON.stringify(Params,null,'\t');
+                    Pop.Debug("Sending new params");
+                    Socket.Send(ParamsString);
+                }
+                while (true)
+                {
+                    const Message = await Socket.WaitForMessage();
+                    const NewParams = JSON.parse(Message);
+                    Pop.Debug("Got new params");
+                    await SetParams(NewParams);
+                }
+            }
         }
 
         Startup().then().catch(OnError);
