@@ -15,7 +15,7 @@ let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 function TCameraWindow(CameraName)
 {
 	this.Textures = [];
-	this.CameraFrameCounter = new TFrameCounter( CameraName );
+	this.CameraFrameCounter = new Pop.FrameCounter( CameraName );
 
 	this.OnRender = function(RenderTarget)
 	{
@@ -46,7 +46,9 @@ function TCameraWindow(CameraName)
 			ShaderSource = Uvy844FragShader;
 		else if ( Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3 )
 			ShaderSource = Yuv8_8_8_MultiImageFragShader;
-		else if ( Texture0.GetFormat() == "RGBA" )
+		else if (Texture0.GetFormat() == "RGBA")
+			ShaderSource = BlitFragShader;
+		else if (Texture0.GetFormat() == "Greyscale")
 			ShaderSource = BlitFragShader;
 		else if ( Texture0.GetFormat() == "Yuv_8_8_8_Full" )
 			ShaderSource = Yuv8_8_8FragShader;
@@ -79,50 +81,25 @@ function TCameraWindow(CameraName)
 		RenderTarget.DrawQuad( FragShader, SetUniforms );
 	}
 	
-	this.ProcessNextFrame = async function(FrameBuffer)
-	{
-		const Stream = 0;
-		const Latest = true;
-		//let NextFrame = await this.Source.GetNextFrame( Planes, Stream, Latest );
-		//let NextFrame = await this.Source.GetNextFrame( undefined, Stream, Latest );
-		const NextFrame = await this.Source.GetNextFrame( FrameBuffer, Stream, Latest );
-		//NextFrame = null;
-		//Pop.GarbageCollect();
-		//return;
-		
-		const NewFrame = NextFrame ? NextFrame : FrameBuffer;
-		if ( !NewFrame )
-			return null;
-		
-		if ( !NewFrame.Planes )
-			return [NewFrame];
-
-		return NewFrame.Planes;
-	}
 	
-	this.ListenForFrames = async function()
+	this.ListenForFrames = async function ()
 	{
-		const FrameBuffer = new Pop.Image();
-		//const FrameBuffer = undefined;
-		while ( true )
+		while (true)
 		{
 			try
 			{
-				await Pop.Yield(10);
-				const fb = FrameBuffer;
-				const NewTexures = await this.ProcessNextFrame(fb);
-				if ( !NewTexures )
-					continue;
-				
-				this.Textures = NewTexures;
+				const NewFrame = await this.Source.WaitForNextFrame();
+
+				//this.Textures = [NewFrame.Plane0];
+				this.Textures = NewFrame.Planes;
 				this.CameraFrameCounter.Add();
 			}
-			catch(e)
+			catch (e)
 			{
 				//	sometimes OnFrameExtracted gets triggered, but there's no frame? (usually first few on some cameras)
 				//	so that gets passed up here. catch it, but make sure we re-request
-				if ( e != "No frame packet buffered" )
-					Pop.Debug( CameraName + " ListenForFrames: " + e);
+				if (e != "No frame packet buffered")
+					Pop.Debug(CameraName + " ListenForFrames: " + e);
 			}
 		}
 	}
@@ -131,8 +108,11 @@ function TCameraWindow(CameraName)
 	this.Window.OnRender = this.OnRender.bind(this);
 	this.Window.OnMouseMove = function(){};
 	this.Window.OnMouseDown = function(){};
-	this.Window.OnMouseUp = function(){};
-	this.Source = new Pop.Media.Source(CameraName);
+	this.Window.OnMouseUp = function () { };
+
+	const LatestOnly = true;
+	this.Source = new Pop.Media.Source(CameraName,undefined,LatestOnly);
+	Pop.Debug("Start listening");
 	this.ListenForFrames().catch(Debug);
 	
 }
@@ -149,6 +129,13 @@ async function FindCamerasLoop()
 			Debug("Already have window for " + CameraName);
 			return;
 		}
+
+		if (CameraName.includes("Microphone"))
+			return;
+		if (CameraName.includes("Kinect2"))
+			return;
+		if (CameraName.includes("Kinect"))
+			return;
 
 		if ( CameraName == "Test")
 			return;
@@ -171,6 +158,8 @@ async function FindCamerasLoop()
 	
 	while ( true )
 	{
+		CreateCamera('000396300112');
+		return;
 		try
 		{
 			let Devices = await Pop.Media.EnumDevices();
