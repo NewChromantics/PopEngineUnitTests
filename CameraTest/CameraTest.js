@@ -10,7 +10,11 @@ let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
+const Params = {};
+Params.KinectDepth = 4000;
 
+const ParamsWindow = new Pop.ParamsWindow(Params);
+ParamsWindow.AddParam('KinectDepth',0,65500);
 
 function TCameraWindow(CameraName)
 {
@@ -76,7 +80,9 @@ function TCameraWindow(CameraName)
 			Shader.SetUniform("ChromaTexture", Texture1 );
 			Shader.SetUniform("ChromaUTexture", Texture1 );
 			Shader.SetUniform("ChromaVTexture", Texture2 );
-			Shader.SetUniform("Yuv_8_8_8_Texture", Texture0 );
+			Shader.SetUniform("Yuv_8_8_8_Texture",Texture0);
+
+			Shader.SetUniform("DepthMax",Params.KinectDepth);			
 		}
 		RenderTarget.DrawQuad( FragShader, SetUniforms );
 	}

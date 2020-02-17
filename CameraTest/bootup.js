@@ -8,6 +8,8 @@ Pop.Include = function(Filename)
 const EngineDebug = new Pop.Engine.StatsWindow();
 
 Pop.Include('../PopEngineCommon/PopApi.js');
+Pop.Include('../PopEngineCommon/PopMath.js');	//	needed by ParamsWindow
+Pop.Include('../PopEngineCommon/ParamsWindow.js');
 Pop.Include('../Common/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 Pop.Include('CameraTest.js');

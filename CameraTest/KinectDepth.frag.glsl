@@ -3,7 +3,7 @@ varying vec2 uv;
 
 uniform sampler2D Texture;
 
-const float DepthMax = 4000.0;
+uniform float DepthMax = 4000.0;
 
 float Range(float Min,float Max,float Value)
 {
