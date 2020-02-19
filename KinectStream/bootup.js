@@ -105,6 +105,7 @@ class TCameraWindow
 		this.CameraFrameCounter = new Pop.FrameCounter(CameraName + " capture");
 		this.RenderFrameCounter = new Pop.FrameCounter(CameraName + " render");
 		this.H264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
+		this.H264FrameCounter = new Pop.FrameCounter(CameraName + " h264");
 		
 
 		this.DepthTexture = null;
@@ -112,26 +113,37 @@ class TCameraWindow
 		this.Source = new Pop.Media.Source(CameraName,undefined,LatestOnly);
 		this.Encoder = new Pop.Media.H264Encoder(Params.EncodeQuality);
 
-		this.FrameLoop().catch(Pop.Debug);
+		this.CaptureFrameLoop().catch(Pop.Debug);
+		this.EncodeFrameLoop().catch(Pop.Debug);
 		this.CreateWindow(CameraName);
 	}
 
-	async FrameLoop()
+	async CaptureFrameLoop()
 	{
-		Pop.Debug("FrameLoop");
+		Pop.Debug("CaptureFrameLoop");
 		while (true)
 		{
 			const NewFrame = await this.Source.WaitForNextFrame();
 			const DepthTexture = NewFrame.Planes[0];
 			DepthTexture.SetFormat('Yuv_8_8_8_Ntsc');
 			const Time = NewFrame.TimeMs;
-			//	gr: this should be a single async
+			//	gr: this should be a single async, but sometimes takes multiple encodes to get a result...
 			this.Encoder.Encode(DepthTexture,Time);
-			//const NewH264 = await this.Encoder.GetNextPacket();
 			this.CameraFrameCounter.Add();
-			//Pop.Debug("NewH264",JSON.stringify(NewH264));
-			//this.H264KbCounter.Add(NewH264.length/1024);
 			this.DepthTexture = DepthTexture;
+		}
+	}
+
+	async EncodeFrameLoop()
+	{
+		Pop.Debug("EncodeFrameLoop");
+		while (true)
+		{
+			const NewH264 = await this.Encoder.GetNextPacket();
+			const H264Data = NewH264.Data;
+			//Pop.Debug("New H264 frame",NewH264.Time,typeof H264Data);
+			this.H264KbCounter.Add(H264Data.length/1024);
+			this.H264FrameCounter.Add();
 		}
 	}
 
