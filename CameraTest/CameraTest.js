@@ -58,7 +58,7 @@ function TCameraWindow(CameraName)
 			ShaderSource = Yuv8_8_8FragShader;
 		else if ( Texture0.GetFormat() == "KinectDepth" )
 			ShaderSource = KinectDepthFragShader;
-		else if ( Texture0.GetFormat() == "FreenectDepthmm" )
+		else if ( Texture0.GetFormat() == "Depth16mm" )
 			ShaderSource = KinectDepthFragShader;
 		else if ( Texture0.GetFormat() == "uyvy" )
 			ShaderSource = UyvyFragShader;
@@ -135,7 +135,7 @@ async function FindCamerasLoop()
 			Debug("Already have window for " + CameraName);
 			return;
 		}
-
+		/*
 		if (CameraName.includes("Microphone"))
 			return;
 		if (CameraName.includes("Kinect2"))
@@ -150,7 +150,7 @@ async function FindCamerasLoop()
 		{
 			//return;
 		}
-		
+		*/
 		try
 		{
 			let Window = new TCameraWindow(CameraName);
@@ -158,18 +158,22 @@ async function FindCamerasLoop()
 		}
 		catch(e)
 		{
-			Debug(e);
+			Pop.Debug("Camera error",e);
 		}
 	}
 	
 	while ( true )
 	{
-		CreateCamera('000396300112');
-		return;
+		function GetDeviceName(Device)
+		{
+			return Device.Serial;
+		}
+
 		try
 		{
 			let Devices = await Pop.Media.EnumDevices();
-			Debug("Pop.Media.EnumDevices found(" + Devices + ") result type=" + (typeof Devices) );
+			Devices = Devices.Devices.map(GetDeviceName);
+			Debug("Pop.Media.EnumDevices found(" + JSON.stringify(Devices) + ") result type=" + (typeof Devices));
 			//Devices.reverse();
 			//CreateCamera(Devices[0]);
 			Devices.forEach( CreateCamera );
