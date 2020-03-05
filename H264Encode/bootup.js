@@ -66,7 +66,7 @@ async function Run(Filename,EncodePreset)
 	//	encode, decode, encode, decode etc
 	while ( true )
 	{
-		const Packet = await Encoder.GetNextPacket();
+		const Packet = await Encoder.WaitForNextPacket();
 		//Pop.Debug("Packet",typeof Packet);
 		if ( !Packet )
 			continue;
