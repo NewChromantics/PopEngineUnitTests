@@ -16,6 +16,7 @@ Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 let Yuv888FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
+let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
 let Yuv8888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
 let DepthmmFragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
@@ -26,15 +27,50 @@ let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 const Params = {};
 Params.DepthMin = 1;
 Params.DepthMax = 4000;
+Params.Compression = 8;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
 ParamsWindow.AddParam('DepthMax',0,65500);
+ParamsWindow.AddParam('Compression',0,9,Math.floor);
+
+//	convert a set of textures to YUV_8_8_8 to encode
+function GetH264Pixels(Planes)
+{
+	//	find the depth plane
+	function IsDepthPlane(Image)
+	{
+		return Image.GetFormat() == 'Depth16mm';
+	}
+	Planes = Planes.filter(IsDepthPlane);
+	const DepthPlane = Planes[0];
+	const DepthPixels = DepthPlane.GetPixelBuffer();
+	const LumaWidth = DepthPlane.GetWidth();
+	const LumaHeight = DepthPlane.GetHeight();
+	const ChromaWidth = LumaWidth / 2;
+	const ChromaHeight = LumaHeight / 2;
+	//	convert depth16 to luma
+	const YuvSize = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + (ChromaWidth * ChromaHeight);
+	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
+	for (let i = 0;i < DepthPixels.length;i ++ )
+	{
+		//	convert to u8
+		const d = DepthPixels[i];
+		let f = Math.Range(Params.DepthMin,Params.DepthMax,d);
+		f *= 255;
+		Yuv_8_8_8[i] = f;
+	}
+	const YuvImage = new Pop.Image();
+	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	return YuvImage;
+}
+
 
 function TCameraWindow(CameraName)
 {
 	this.Textures = [];
 	this.CameraFrameCounter = new Pop.FrameCounter(CameraName);
+	this.EncodedH264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
 
 	this.OnRender = function (RenderTarget)
 	{
@@ -50,7 +86,7 @@ function TCameraWindow(CameraName)
 			return;
 		}
 
-		let Texture0 = this.Textures[0];
+		let Texture0 = this.EncodedTexture ? this.EncodedTexture : this.Textures[0];
 		let Texture1 = this.Textures[1];
 		let Texture2 = this.Textures[2];
 
@@ -70,6 +106,8 @@ function TCameraWindow(CameraName)
 		else if (Texture0.GetFormat() == "Greyscale")
 			ShaderSource = BlitFragShader;
 		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
+			ShaderSource = Yuv8_8_8FragShader;
+		else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
 			ShaderSource = Yuv8_8_8FragShader;
 		else if (Texture0.GetFormat() == "KinectDepth")
 			ShaderSource = DepthmmFragShader;
@@ -103,6 +141,23 @@ function TCameraWindow(CameraName)
 		RenderTarget.DrawQuad(FragShader,SetUniforms);
 	}
 
+	this.EncodedLoop = async function ()
+	{
+		//	wait for encoded packets, then send them out
+		while (true)
+		{
+			if (!this.Encoder)
+			{
+				await Pop.Yield(1000);
+				continue;
+			}
+
+			//Pop.Debug("Wait for next packet");
+			const Packet = await this.Encoder.WaitForNextPacket();
+			//Pop.Debug("Got packet x",Packet.Data.length);
+			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
+		}
+	}
 
 	this.ListenForFrames = async function ()
 	{
@@ -112,6 +167,20 @@ function TCameraWindow(CameraName)
 			{
 				const NewFrame = await this.Source.WaitForNextFrame();
 				this.Textures = NewFrame.Planes;
+				const Time = NewFrame.Time ? NewFrame.Time : Pop.GetTimeNowMs();
+
+				//	remake encoder if compression changes
+				if (this.EncoderCompression != Params.Compression)
+					this.Encoder = null;
+
+				if (!this.Encoder)
+				{
+					this.Encoder = new Pop.Media.H264Encoder(Params.Compression);
+				}
+
+				this.EncodedTexture = GetH264Pixels(this.Textures);
+				this.Encoder.Encode(this.EncodedTexture,Time);
+				
 				this.CameraFrameCounter.Add();
 			}
 			catch (e)
@@ -134,10 +203,13 @@ function TCameraWindow(CameraName)
 	const Format = "Depth16";
 	//const Format = "Yuv_8_88_Ntsc_Depth16";
 	//const Format = "Yuv_8_44_Ntsc_Depth16";
+	//	make this a callback!
+	this.EncoderCompression = Params.Compression;
+	this.Encoder = null;
 	this.Source = new Pop.Media.Source(CameraName,Format,LatestOnly);
-	Pop.Debug("Start listening");
 	this.ListenForFrames().catch(Pop.Debug);
-
+	this.EncodedLoop().catch(Pop.Debug);
+	
 }
 
 
