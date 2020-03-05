@@ -17,17 +17,19 @@ let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 let Yuv888FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
 let Yuv8888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
-let KinectDepthFragShader = Pop.LoadFileAsString('KinectDepth.frag.glsl');
+let DepthmmFragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 
 const Params = {};
-Params.KinectDepth = 4000;
+Params.DepthMin = 1;
+Params.DepthMax = 4000;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
-ParamsWindow.AddParam('KinectDepth',0,65500);
+ParamsWindow.AddParam('DepthMin',0,65500);
+ParamsWindow.AddParam('DepthMax',0,65500);
 
 function TCameraWindow(CameraName)
 {
@@ -70,9 +72,9 @@ function TCameraWindow(CameraName)
 		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
 			ShaderSource = Yuv8_8_8FragShader;
 		else if (Texture0.GetFormat() == "KinectDepth")
-			ShaderSource = KinectDepthFragShader;
+			ShaderSource = DepthmmFragShader;
 		else if (Texture0.GetFormat() == "Depth16mm")
-			ShaderSource = KinectDepthFragShader;
+			ShaderSource = DepthmmFragShader;
 		else if (Texture0.GetFormat() == "uyvy")
 			ShaderSource = UyvyFragShader;
 		else
@@ -95,7 +97,8 @@ function TCameraWindow(CameraName)
 			Shader.SetUniform("ChromaVTexture",Texture2);
 			Shader.SetUniform("Yuv_8_8_8_Texture",Texture0);
 
-			Shader.SetUniform("DepthMax",Params.KinectDepth);
+			Shader.SetUniform("DepthMin",Params.DepthMin);
+			Shader.SetUniform("DepthMax",Params.DepthMax);
 		}
 		RenderTarget.DrawQuad(FragShader,SetUniforms);
 	}
@@ -108,8 +111,6 @@ function TCameraWindow(CameraName)
 			try
 			{
 				const NewFrame = await this.Source.WaitForNextFrame();
-
-				//this.Textures = [NewFrame.Plane0];
 				this.Textures = NewFrame.Planes;
 				this.CameraFrameCounter.Add();
 			}
@@ -130,7 +131,10 @@ function TCameraWindow(CameraName)
 	this.Window.OnMouseUp = function () { };
 
 	const LatestOnly = true;
-	this.Source = new Pop.Media.Source(CameraName,undefined,LatestOnly);
+	const Format = "Depth16";
+	//const Format = "Yuv_8_88_Ntsc_Depth16";
+	//const Format = "Yuv_8_44_Ntsc_Depth16";
+	this.Source = new Pop.Media.Source(CameraName,Format,LatestOnly);
 	Pop.Debug("Start listening");
 	this.ListenForFrames().catch(Pop.Debug);
 
