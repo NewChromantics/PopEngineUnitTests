@@ -19,7 +19,7 @@ function GetUniqueHash(Object)
 	
 	UniqueHashCounter++;
 	Object._UniqueHash = HashPrefix + UniqueHashCounter;
-	Debug("Created new hash for object: " + Object._UniqueHash );
+	Pop.Debug("Created new hash for object: " + Object._UniqueHash );
 	
 	return Object._UniqueHash;
 }
@@ -39,35 +39,35 @@ Pop.GetShader = function(RenderContext, FragSource)
 	if ( !Pop.Opengl.ShaderCache[ContextKey] )
 	{
 		Pop.Opengl.ShaderCache[ContextKey] = [];
-		Debug("New ShaderCache for render context " + ContextKey);
+		Pop.Debug("New ShaderCache for render context " + ContextKey);
 	}
 	
 	if ( !Pop.Opengl.ShaderCache[ContextKey][SourceKey] )
 	{
 		let Shader = new Pop.Opengl.Shader( RenderContext, VertShader, FragSource );
 		Shader.Counter = Counter++;
-		//Debug("pre Shader keys: " + Object.keys(Pop.Opengl.ShaderCache[ContextKey]) );
+		//Pop.Debug("pre Shader keys: " + Object.keys(Pop.Opengl.ShaderCache[ContextKey]) );
 		Pop.Opengl.ShaderCache[ContextKey][SourceKey] = Shader;
-		//Debug("New ShaderCache[] " + Shader.Counter + " for FragSource " + SourceKey );
-		//Debug("post Shader keys: " + Object.keys(Pop.Opengl.ShaderCache[ContextKey]) );
+		//Pop.Debug("New ShaderCache[] " + Shader.Counter + " for FragSource " + SourceKey );
+		//Pop.Debug("post Shader keys: " + Object.keys(Pop.Opengl.ShaderCache[ContextKey]) );
 	}
 	/*
 	let MatchingShader = null;
 	let MatchShader = function(ShaderKey,Index)
 	{
 		let Shader = Pop.Opengl.ShaderCache[ContextKey][ShaderKey];
-		Debug("Key #" + Index + " counter=" + Shader.Counter);
+		Pop.Debug("Key #" + Index + " counter=" + Shader.Counter);
 		if ( ShaderKey != SourceKey )
 			return;
-		Debug("Key #" + Index + " is match");
+		Pop.Debug("Key #" + Index + " is match");
 		MatchingShader = Shader;
 	}
 	Object.keys(Pop.Opengl.ShaderCache[ContextKey]).forEach( MatchShader );
-	Debug("picked match counter=" + MatchingShader.Counter);
+	Pop.Debug("picked match counter=" + MatchingShader.Counter);
 	return MatchingShader;
 	*/
 	let Shader = Pop.Opengl.ShaderCache[ContextKey][SourceKey];
-	//Debug( Shader.Counter );
+	//Pop.Debug( Shader.Counter );
 	return Shader;
 }
 
