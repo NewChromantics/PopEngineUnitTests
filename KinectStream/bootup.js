@@ -9,25 +9,28 @@ const EngineDebug = new Pop.Engine.StatsWindow();
 Pop.Include('../PopEngineCommon/PopApi.js');
 Pop.Include('../PopEngineCommon/PopMath.js');	//	needed by ParamsWindow
 Pop.Include('../PopEngineCommon/ParamsWindow.js');
+Pop.Include('../PopEngineCommon/PopTexture.js');
 Pop.Include('../Common/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
-let Yuv888FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
+let Yuv8_88FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
 let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
-let Yuv8888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
+let Yuv888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
+let Yuv8_8_8_OneImageFragShader = Pop.LoadFileAsString('Yuv8_8_8_OneImage.frag.glsl');
 let DepthmmFragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
+const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 
 const Params = {};
 Params.DepthMin = 1;
-Params.DepthMax = 4000;
-Params.Compression = 8;
+Params.DepthMax = 1000;
+Params.Compression = 0;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -52,13 +55,47 @@ function GetH264Pixels(Planes)
 	//	convert depth16 to luma
 	const YuvSize = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + (ChromaWidth * ChromaHeight);
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
+	function GetChromaIndex(x,y)
+	{
+		//	gr: this isn't writing to the correct place, only getting left half
+		x /= 2;
+		y /= 2;
+		let i = y * ChromaWidth;
+		i += x;
+		return Math.floor(i);
+	}
+
 	for (let i = 0;i < DepthPixels.length;i ++ )
 	{
-		//	convert to u8
-		const d = DepthPixels[i];
-		let f = Math.Range(Params.DepthMin,Params.DepthMax,d);
-		f *= 255;
-		Yuv_8_8_8[i] = f;
+		const x = Math.floor(i % LumaWidth);
+		const y = Math.floor(i / LumaWidth);
+		const LumaIndex = i;
+		const ChromaUIndex = (LumaWidth * LumaHeight) + GetChromaIndex(x,y);
+		const ChromaVIndex = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + GetChromaIndex(x,y);
+
+		const Depth = DepthPixels[i];
+		let Depthf = Math.RangeClamped(Params.DepthMin,Params.DepthMax,Depth);
+
+		//	convert to multiple ranges we can check post compression;
+		const Ranges =
+			[
+				[0,0],
+				[1,0],
+				[0,1],
+				[1,1]
+			];
+		Depthf *= Ranges.length-1;
+		const Remain = Depthf % 1;
+		const RangeIndex = Math.floor(Depthf);
+		//Pop.Debug(Depthf,Remain,RangeIndex);
+		//continue;
+		const Rangeuv = Ranges[RangeIndex];
+		const Luma = Remain;
+		//const Luma = RangeIndex / Ranges.length;
+
+		Yuv_8_8_8[LumaIndex] = Luma * 255;
+		Yuv_8_8_8[ChromaUIndex] = Luma * 255;//Rangeuv[0] * 255;
+		Yuv_8_8_8[ChromaVIndex] = 0;//Rangeuv[1] * 255;
 	}
 	const YuvImage = new Pop.Image();
 	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
@@ -89,8 +126,11 @@ function TCameraWindow(CameraName)
 		let Texture0 = this.EncodedTexture ? this.EncodedTexture : this.Textures[0];
 		let Texture1 = this.Textures[1];
 		let Texture2 = this.Textures[2];
+		if (!Texture1) Texture1 = BlackTexture;
+		if (!Texture2) Texture2 = BlackTexture;
+		
 
-		//Pop.Debug(Texture0.GetFormat());
+		Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
 		let ShaderSource = BlitFragShader;
 
 		if (Texture0.GetFormat() == "YYuv_8888_Full")
@@ -100,15 +140,19 @@ function TCameraWindow(CameraName)
 		else if (Texture0.GetFormat() == "Uvy_844_Full")
 			ShaderSource = Uvy844FragShader;
 		else if (Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3)
-			ShaderSource = Yuv8_8_8_MultiImageFragShader;
+			ShaderSource = Yuv8_8_8FragShader;
 		else if (Texture0.GetFormat() == "RGBA")
 			ShaderSource = BlitFragShader;
 		else if (Texture0.GetFormat() == "Greyscale")
 			ShaderSource = BlitFragShader;
+		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full" && this.Textures.length == 1)
+			ShaderSource = Yuv8_8_8_OneImageFragShader;
+		else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc" && this.Textures.length == 1)
+			ShaderSource = Yuv8_8_8_OneImageFragShader;
 		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
-			ShaderSource = Yuv8_8_8FragShader;
+			ShaderSource = Yuv8888FragShader;
 		else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
-			ShaderSource = Yuv8_8_8FragShader;
+			ShaderSource = Yuv8888FragShader;
 		else if (Texture0.GetFormat() == "KinectDepth")
 			ShaderSource = DepthmmFragShader;
 		else if (Texture0.GetFormat() == "Depth16mm")
@@ -121,7 +165,6 @@ function TCameraWindow(CameraName)
 			this.Textures.forEach(t => Formats.push(t.GetFormat()));
 			Pop.Debug("No specific shader for " + Formats.join(','));
 		}
-
 
 		let FragShader = Pop.GetShader(RenderTarget,ShaderSource);
 
