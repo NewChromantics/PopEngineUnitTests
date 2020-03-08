@@ -32,12 +32,14 @@ Params.DepthMin = 1;
 Params.DepthMax = 1000;
 Params.Compression = 0;
 Params.ChromaRanges = 6;
+Params.DepthSquared = false;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
 ParamsWindow.AddParam('DepthMax',0,65500);
 ParamsWindow.AddParam('Compression',0,9,Math.floor);
 ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
+ParamsWindow.AddParam('DepthSquared');
 
 function GetUvRanges(RangeCount)
 {
@@ -93,7 +95,6 @@ function GetH264Pixels(Planes)
 		let i = y * ChromaWidth;
 		i += x;
 		i = Math.floor(i);
-		//if (i >= ChromaSize)	i = ChromaSize - 1;
 		return i;
 	}
 
@@ -106,16 +107,24 @@ function GetH264Pixels(Planes)
 		const x = Math.floor(i % LumaWidth);
 		const y = Math.floor(i / LumaWidth);
 		const LumaIndex = i;
-		const ChromaUIndex = (LumaWidth * LumaHeight) + GetChromaIndex(x,y);
-		const ChromaVIndex = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + GetChromaIndex(x,y);
+		const ChromaIndex = GetChromaIndex(x,y);
+		const ChromaUIndex = (LumaWidth * LumaHeight) + ChromaIndex;
+		const ChromaVIndex = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + ChromaIndex;
 
 		const Depth = DepthPixels[i];
 		let Depthf = Math.RangeClamped(Params.DepthMin,Params.DepthMax,Depth);
+
+		if (Params.DepthSquared)
+		{
+			Depthf = 1 - Depthf;
+			Depthf *= Depthf;
+			Depthf = 1 - Depthf;
+		}
 		
 		const DepthScaled = Depthf * RangeLengthMin1;
 		const Remain = DepthScaled % 1;
 		let RangeIndex = Math.floor(DepthScaled);
-		RangeIndex = Math.min(RangeIndex,Ranges.length-1);
+		RangeIndex = Math.min(RangeIndex,RangeLengthMin1);
 		//Pop.Debug(Depthf,Remain,RangeIndex);
 		//continue;
 		const Rangeuv = Ranges[RangeIndex];
@@ -124,20 +133,14 @@ function GetH264Pixels(Planes)
 		//const Luma = RangeIndex / Ranges.length;
 
 		Yuv_8_8_8[LumaIndex] = Luma * 255;
-		try
-		{
-			Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
-			Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
-		}
-		catch (e)
-		{
-			Pop.Debug("Rangeuv " + JSON.stringify(Rangeuv),RangeIndex);
-		}
-		if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
-			Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
+		Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
+		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
+		//if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
+		//	Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
 	}
 	const YuvImage = new Pop.Image();
 	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.SetLinearFilter(false);
 	return YuvImage;
 }
 
@@ -146,6 +149,7 @@ function TCameraWindow(CameraName)
 {
 	this.Textures = [];
 	this.CameraFrameCounter = new Pop.FrameCounter(CameraName);
+	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264");
 	this.EncodedH264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
 
 	this.OnRender = function (RenderTarget)
@@ -231,7 +235,7 @@ function TCameraWindow(CameraName)
 		{
 			if (!this.Encoder)
 			{
-				await Pop.Yield(1000);
+				await Pop.Yield(200);
 				continue;
 			}
 
@@ -239,6 +243,7 @@ function TCameraWindow(CameraName)
 			const Packet = await this.Encoder.WaitForNextPacket();
 			//Pop.Debug("Got packet x",Packet.Data.length);
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
+			this.EncodedH264Counter.Add();
 		}
 	}
 
