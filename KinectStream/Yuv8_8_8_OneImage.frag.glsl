@@ -107,8 +107,9 @@ float2 GetChromaUuv(float2 uv)
 	//		the ROW corresponds to the section
 	//		so sample the right section.
 	//		this needs to be way more pixel-perfect!
-	//	quick test
-	uv.x = mix( 0.0, 0.50, uv.x );
+	//	gr: is there a way to do this without width?
+	//TextureWidth
+	uv.x = mix( 0.0, 0.25, uv.x );
 	
 	uv = mix( RectMin, RectMax, uv );
 	return uv;
@@ -117,14 +118,36 @@ float2 GetChromaUuv(float2 uv)
 float2 GetChromaVuv(float2 uv)
 {
 	uv = GetChromaUuv(uv);
+	
+	float LumaBottom;
+	float ChromaUBottom;
+	GetPlaneVs( LumaBottom, ChromaUBottom);
+	uv.y += ChromaUBottom - LumaBottom;
+
 	return uv;
+}
+
+
+const bool DebugEverything = false;
+const bool DebugLuma = false;
+const bool DebugChromaU = false;
+const bool DebugChromaV = false;
+
+float3 GetRgb_Debug()
+{
+	float4 Sample = texture2D( LumaTexture, uv );
+	return NormalToRedGreenBlue(Sample.x);
 }
 
 void main()
 {
-	gl_FragColor = texture2D( LumaTexture, uv );
-	return;
+	gl_FragColor.w = 1;
 
+	if ( DebugEverything )
+	{
+		gl_FragColor.xyz = GetRgb_Debug();
+		return;
+	}
 
 	float2 Lumauv = GetLumaUv(uv);
 	float2 ChromaUuv = GetChromaUuv(uv);
@@ -134,11 +157,30 @@ void main()
 	//Luma = 0.5;
 	float ChromaU = texture2D( LumaTexture, ChromaUuv ).x;
 	float ChromaV = texture2D( LumaTexture, ChromaVuv ).x;
-	gl_FragColor.xyz = LumaChromaToRgb( Luma, float2(ChromaU,ChromaV) );
-	gl_FragColor.xyz = float3(ChromaU,ChromaU,ChromaV);
-	gl_FragColor.xyz = float3(ChromaV,ChromaV,ChromaU);
-	gl_FragColor.w = 1;
+
+	if ( DebugLuma )
+	{
+		gl_FragColor.xyz = NormalToRedGreenBlue(Luma);
+		return;
+	}
+
+	if ( DebugChromaU )
+	{
+		gl_FragColor.xyz = NormalToRedGreenBlue(ChromaU);
+		return;
+	}
+
+	if ( DebugChromaV )
+	{
+		gl_FragColor.xyz = NormalToRedGreenBlue(ChromaV);
+		return;
+	}
+	
+	//gl_FragColor.xyz = float3(ChromaU,ChromaU,ChromaV);
+	//gl_FragColor.xyz = float3(ChromaV,ChromaV,ChromaU);
 	//gl_FragColor = texture2D( LumaTexture, Lumauv );
+
+	gl_FragColor.xyz = LumaChromaToRgb( Luma, float2(ChromaU,ChromaV) );
 }
 
 

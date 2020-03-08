@@ -50,19 +50,24 @@ function GetH264Pixels(Planes)
 	const DepthPixels = DepthPlane.GetPixelBuffer();
 	const LumaWidth = DepthPlane.GetWidth();
 	const LumaHeight = DepthPlane.GetHeight();
-	const ChromaWidth = LumaWidth / 2;
-	const ChromaHeight = LumaHeight / 2;
+
+	const ChromaWidth = Math.floor(LumaWidth / 2);
+	const ChromaHeight = Math.floor(LumaHeight / 2);
+	const ChromaSize = ChromaWidth * ChromaHeight;
+	Pop.Debug(`LumaWidth ${LumaWidth} LumaHeight ${LumaHeight} DepthPixels.length ${DepthPixels.length} ChromaWidth${ChromaWidth} ChromaHeight${ChromaHeight}`);
 	//	convert depth16 to luma
 	const YuvSize = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + (ChromaWidth * ChromaHeight);
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
 	function GetChromaIndex(x,y)
 	{
-		//	gr: this isn't writing to the correct place, only getting left half
-		x /= 2;
+		//	gr: /2 /2 isn't writing to the correct place, only getting left half
+		x /= 4;
 		y /= 2;
 		let i = y * ChromaWidth;
 		i += x;
-		return Math.floor(i);
+		i = Math.floor(i);
+		//if (i >= ChromaSize)	i = ChromaSize - 1;
+		return i;
 	}
 
 	for (let i = 0;i < DepthPixels.length;i ++ )
@@ -79,23 +84,31 @@ function GetH264Pixels(Planes)
 		//	convert to multiple ranges we can check post compression;
 		const Ranges =
 			[
-				[0,0],
-				[1,0],
-				[0,1],
-				[1,1]
+				[0.0,	0],
+				[0.5,	0],
+				[1.0,	0],
+				[0.0,	0.5],
+				[0.5,	0.5],
+				[1.0,	0.5],
+				[0.0,	1.0],
+				[0.5,	1.0],
+				[1.0,	1.0],
 			];
-		Depthf *= Ranges.length-1;
-		const Remain = Depthf % 1;
-		const RangeIndex = Math.floor(Depthf);
+		const DepthScaled = Depthf * (Ranges.length - 1);
+		const Remain = DepthScaled % 1;
+		const RangeIndex = Math.floor(DepthScaled);
 		//Pop.Debug(Depthf,Remain,RangeIndex);
 		//continue;
 		const Rangeuv = Ranges[RangeIndex];
-		const Luma = Remain;
+		//const Luma = Remain;
+		const Luma = Depthf;
 		//const Luma = RangeIndex / Ranges.length;
 
 		Yuv_8_8_8[LumaIndex] = Luma * 255;
-		Yuv_8_8_8[ChromaUIndex] = Luma * 255;//Rangeuv[0] * 255;
-		Yuv_8_8_8[ChromaVIndex] = 0;//Rangeuv[1] * 255;
+		Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
+		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
+		if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
+			Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
 	}
 	const YuvImage = new Pop.Image();
 	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
