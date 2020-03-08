@@ -169,7 +169,7 @@ function TCameraWindow(CameraName)
 		if (!Texture2) Texture2 = BlackTexture;
 		
 
-		Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
+		//Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
 		let ShaderSource = BlitFragShader;
 
 		if (Texture0.GetFormat() == "YYuv_8888_Full")
@@ -206,11 +206,12 @@ function TCameraWindow(CameraName)
 		}
 
 		let FragShader = Pop.GetShader(RenderTarget,ShaderSource);
-
+		
 		let SetUniforms = function (Shader)
 		{
 			Shader.SetUniform("Texture",Texture0);
 			Shader.SetUniform("TextureWidth",Texture0.GetWidth());
+			Shader.SetUniform("TextureHeight",Texture0.GetHeight());
 			Shader.SetUniform("LumaTexture",Texture0);
 			Shader.SetUniform("ChromaTexture",Texture1);
 			Shader.SetUniform("ChromaUTexture",Texture1);

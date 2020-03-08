@@ -2,6 +2,7 @@ precision highp float;
 varying vec2 uv;
 
 uniform sampler2D LumaTexture;
+uniform int TextureHeight;
 
 const float ChromaVRed = 1.5958;
 const float ChromaUGreen = -0.39173;
@@ -107,12 +108,57 @@ float2 GetChromaUuv(float2 uv)
 	//		the ROW corresponds to the section
 	//		so sample the right section.
 	//		this needs to be way more pixel-perfect!
-	//	gr: is there a way to do this without width?
-	//TextureWidth
-	uv.x = mix( 0.0, 0.25, uv.x );
+	//	gr: is there a way to do this without known height?
+	//	Texture height is the luma plane height, in opengl all planes are lined up (see above)
+	//	so the SAMPLER texture height is different; 
+	//		576 + 288 + 288
+	//	but the width is also halved, so the height is half again
+	//	eg; 640x480 becomes 640x864 
+	float ChromaPlaneHeight = TextureHeight / 2 / 2;
+
+	float ChromaRows = ChromaPlaneHeight / 2;
+	float RowIndex = uv.y * ChromaRows;
+	int RowN = int(floor(RowIndex)) % 4;
+
+	float Columns[4] = {3,2,1,0};
+	
+	RectMin.x = 0.25 * (Columns[RowN]+0);
+	RectMax.x = 0.25 * (Columns[RowN]+1);
 	
 	uv = mix( RectMin, RectMax, uv );
 	return uv;
+}
+
+
+float3 GetChromaUvDebug(float2 uv)
+{
+	float LumaBottom;
+	float ChromaUBottom;
+	GetPlaneVs( LumaBottom, ChromaUBottom);
+		
+	float2 RectMin = float2(0,LumaBottom);
+	float2 RectMax = float2(1,ChromaUBottom);
+	
+	//	gr: the chroma plane is 1/4 size (0.5*0.5)
+	//		so we see 4 images side by side
+	//		the ROW corresponds to the section
+	//		so sample the right section.
+	//		this needs to be way more pixel-perfect!
+	//	gr: is there a way to do this without known height?
+	
+	float ChromaRows = TextureHeight / 2;
+	float RowIndex = uv.y * ChromaRows;
+	int RowN = int(RowIndex) % 4;
+
+	if ( RowN == 0 )
+		return NormalToRedGreenBlue(0);
+	if ( RowN == 1 )
+		return NormalToRedGreenBlue(0.25);
+	if ( RowN == 2 )
+		return NormalToRedGreenBlue(0.50);
+	if ( RowN == 3 )
+		return NormalToRedGreenBlue(0.75);
+	return float3(1,1,1);
 }
 
 float2 GetChromaVuv(float2 uv)
@@ -132,6 +178,7 @@ const bool DebugEverything = false;
 const bool DebugLuma = false;
 const bool DebugChromaU = false;
 const bool DebugChromaV = false;
+const bool DebugChromaUv = false;
 
 float3 GetRgb_Debug()
 {
@@ -141,6 +188,7 @@ float3 GetRgb_Debug()
 
 void main()
 {
+	float2 Sampleuv = uv;// / 2;
 	gl_FragColor.w = 1;
 
 	if ( DebugEverything )
@@ -149,9 +197,15 @@ void main()
 		return;
 	}
 
-	float2 Lumauv = GetLumaUv(uv);
-	float2 ChromaUuv = GetChromaUuv(uv);
-	float2 ChromaVuv = GetChromaVuv(uv);
+	if ( DebugChromaUv && uv.x < 0.2 )
+	{
+		gl_FragColor.xyz = GetChromaUvDebug(Sampleuv);
+		return;
+	}
+
+	float2 Lumauv = GetLumaUv(Sampleuv);
+	float2 ChromaUuv = GetChromaUuv(Sampleuv);
+	float2 ChromaVuv = GetChromaVuv(Sampleuv);
 
 	float Luma = texture2D( LumaTexture, Lumauv ).x;
 	//Luma = 0.5;
