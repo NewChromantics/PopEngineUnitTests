@@ -31,11 +31,38 @@ const Params = {};
 Params.DepthMin = 1;
 Params.DepthMax = 1000;
 Params.Compression = 0;
+Params.ChromaRanges = 6;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
 ParamsWindow.AddParam('DepthMax',0,65500);
 ParamsWindow.AddParam('Compression',0,9,Math.floor);
+ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
+
+function GetUvRanges(RangeCount)
+{
+	//	build a unique-uv table with a total of RangeCount
+	let RangeX = Math.sqrt(RangeCount);
+	RangeX = Math.ceil(RangeX);
+	RangeX = Math.max(1,RangeX);
+	//	gr: we could clip this to get closer to original count
+	const RangeY = RangeX;
+
+	const Ranges = [];
+	const RangeXMax = Math.max(1,RangeX - 1);
+	const RangeYMax = Math.max(1,RangeY - 1);
+	for (let x = 0;x < RangeX;x++)
+	{
+		for (let y = 0;y < RangeY;y++)
+		{
+			const xf = x / RangeXMax;
+			const yf = y / RangeYMax;
+			Ranges.push([xf,yf]);
+		}
+	}
+
+	return Ranges;
+}
 
 //	convert a set of textures to YUV_8_8_8 to encode
 function GetH264Pixels(Planes)
@@ -54,7 +81,7 @@ function GetH264Pixels(Planes)
 	const ChromaWidth = Math.floor(LumaWidth / 2);
 	const ChromaHeight = Math.floor(LumaHeight / 2);
 	const ChromaSize = ChromaWidth * ChromaHeight;
-	Pop.Debug(`LumaWidth ${LumaWidth} LumaHeight ${LumaHeight} DepthPixels.length ${DepthPixels.length} ChromaWidth${ChromaWidth} ChromaHeight${ChromaHeight}`);
+	//Pop.Debug(`LumaWidth ${LumaWidth} LumaHeight ${LumaHeight} DepthPixels.length ${DepthPixels.length} ChromaWidth${ChromaWidth} ChromaHeight${ChromaHeight}`);
 	//	convert depth16 to luma
 	const YuvSize = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + (ChromaWidth * ChromaHeight);
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
@@ -70,6 +97,10 @@ function GetH264Pixels(Planes)
 		return i;
 	}
 
+	const Ranges = GetUvRanges(Params.ChromaRanges);
+	const RangeLengthMin1 = Math.max(1,Ranges.length - 1);
+	//Pop.Debug(JSON.stringify(Ranges));
+
 	for (let i = 0;i < DepthPixels.length;i ++ )
 	{
 		const x = Math.floor(i % LumaWidth);
@@ -80,33 +111,28 @@ function GetH264Pixels(Planes)
 
 		const Depth = DepthPixels[i];
 		let Depthf = Math.RangeClamped(Params.DepthMin,Params.DepthMax,Depth);
-
-		//	convert to multiple ranges we can check post compression;
-		const Ranges =
-			[
-				[0.0,	0],
-				[0.5,	0],
-				[1.0,	0],
-				[0.0,	0.5],
-				[0.5,	0.5],
-				[1.0,	0.5],
-				[0.0,	1.0],
-				[0.5,	1.0],
-				[1.0,	1.0],
-			];
-		const DepthScaled = Depthf * (Ranges.length - 1);
+		
+		const DepthScaled = Depthf * RangeLengthMin1;
 		const Remain = DepthScaled % 1;
-		const RangeIndex = Math.floor(DepthScaled);
+		let RangeIndex = Math.floor(DepthScaled);
+		RangeIndex = Math.min(RangeIndex,Ranges.length-1);
 		//Pop.Debug(Depthf,Remain,RangeIndex);
 		//continue;
 		const Rangeuv = Ranges[RangeIndex];
-		//const Luma = Remain;
-		const Luma = Depthf;
+		const Luma = Remain;
+		//const Luma = Depthf;
 		//const Luma = RangeIndex / Ranges.length;
 
 		Yuv_8_8_8[LumaIndex] = Luma * 255;
-		Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
-		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
+		try
+		{
+			Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
+			Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
+		}
+		catch (e)
+		{
+			Pop.Debug("Rangeuv " + JSON.stringify(Rangeuv),RangeIndex);
+		}
 		if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
 			Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
 	}
