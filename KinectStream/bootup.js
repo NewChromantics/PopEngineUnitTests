@@ -94,7 +94,7 @@ function GetH264Pixels(Planes)
 		y /= 2;
 		let i = y * ChromaWidth;
 		i += x;
-		i = Math.floor(i);
+		//i = Math.floor(i);
 		return i;
 	}
 
@@ -104,6 +104,11 @@ function GetH264Pixels(Planes)
 
 	for (let i = 0;i < DepthPixels.length;i ++ )
 	{
+		/*	test speed
+		const f = i / DepthPixels.length;
+		Yuv_8_8_8[i] = f * 255;
+		continue;
+		*/
 		const x = Math.floor(i % LumaWidth);
 		const y = Math.floor(i / LumaWidth);
 		const LumaIndex = i;
