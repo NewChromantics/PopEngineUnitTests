@@ -233,6 +233,15 @@ function TCameraWindow(CameraName)
 		RenderTarget.DrawQuad(FragShader,SetUniforms);
 	}
 
+	this.DecodeLoop = async function ()
+	{
+		while (true)
+		{
+			const Frame = await this.Decoder.WaitForNextFrame();
+			Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
+		}
+	}
+
 	this.EncodedLoop = async function ()
 	{
 		//	wait for encoded packets, then send them out
@@ -240,15 +249,19 @@ function TCameraWindow(CameraName)
 		{
 			if (!this.Encoder)
 			{
+				Pop.Debug("Waiting for encoder");
 				await Pop.Yield(200);
 				continue;
 			}
 
 			//Pop.Debug("Wait for next packet");
 			const Packet = await this.Encoder.WaitForNextPacket();
-			//Pop.Debug("Got packet x",Packet.Data.length);
+			Pop.Debug("Got packet x",Packet.Data.length);
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
 			this.EncodedH264Counter.Add();
+
+			//	now re-decode
+			this.Decoder.Decode(Packet.Data);
 		}
 	}
 
@@ -268,7 +281,9 @@ function TCameraWindow(CameraName)
 
 				if (!this.Encoder)
 				{
+					Pop.Debug("New encoder",Params.Compression);
 					this.Encoder = new Pop.Media.H264Encoder(Params.Compression);
+					this.EncoderCompression = Params.Compression;
 				}
 
 				this.EncodedTexture = GetH264Pixels(this.Textures);
@@ -300,8 +315,10 @@ function TCameraWindow(CameraName)
 	this.EncoderCompression = Params.Compression;
 	this.Encoder = null;
 	this.Source = new Pop.Media.Source(CameraName,Format,LatestOnly);
+	this.Decoder = new Pop.Media.AvcDecoder();
 	this.ListenForFrames().catch(Pop.Debug);
-	this.EncodedLoop().catch(Pop.Debug);
+	this.EncodedLoop().catch(function (e) { Pop.Debug("Encode loop exception",e); });
+	this.DecodeLoop().catch(function (e) { Pop.Debug("Decode loop exception",e); });
 	
 }
 
