@@ -12,8 +12,9 @@ Pop.CreateColourTexture = function(Colour4)
 
 
 let InputImage = Pop.CreateColourTexture([255,0,0,255]);
+let YuvImage = null;
 let OutputImage = null;
-const NullOutputImage = Pop.CreateColourTexture([0,255,0,255]);
+const NullImage = Pop.CreateColourTexture([0,255,0,255]);
 
 
 let BlitShader = null;
@@ -27,26 +28,34 @@ function Render(RenderTarget)
 	if ( !CompareShader )
 		CompareShader = new Pop.Opengl.Shader( RenderTarget, VertShader, CompareFragShader );
 	
-	const DrawLeft_SetUniforms = function(Shader)
+	const DrawInput_SetUniforms = function (Shader)
 	{
-		Shader.SetUniform("VertexRect", [0,0,0.33,1] );
-		Shader.SetUniform("Texture", InputImage );
+		Shader.SetUniform("VertexRect",[0,0,0.25,1]);
+		Shader.SetUniform("Texture",InputImage);
 	}
-	RenderTarget.DrawQuad( BlitShader, DrawLeft_SetUniforms );
+	RenderTarget.DrawQuad(BlitShader,DrawInput_SetUniforms);
 
-	const DrawRight_SetUniforms = function(Shader)
+	const DrawYuv_SetUniforms = function (Shader)
 	{
-		const Img = OutputImage ? OutputImage : NullOutputImage;
-		Shader.SetUniform("VertexRect", [0.33,0,0.33,1] );
+		const Img = YuvImage ? YuvImage : NullImage;
+		Shader.SetUniform("VertexRect",[0.25,0,0.25,1]);
+		Shader.SetUniform("Texture",Img);
+	}
+	RenderTarget.DrawQuad(BlitShader,DrawYuv_SetUniforms);
+
+	const DrawDecoded_SetUniforms = function(Shader)
+	{
+		const Img = OutputImage ? OutputImage : NullImage;
+		Shader.SetUniform("VertexRect", [0.50,0,0.25,1] );
 		Shader.SetUniform("Texture",Img );
 	}
-	RenderTarget.DrawQuad( BlitShader, DrawRight_SetUniforms );
+	RenderTarget.DrawQuad(BlitShader,DrawDecoded_SetUniforms );
 
 	const DrawCompare_SetUniforms = function(Shader)
 	{
-		const Img = OutputImage ? OutputImage : NullOutputImage;
-		Shader.SetUniform("VertexRect", [0.66,0,0.33,1] );
-		Shader.SetUniform("TextureA", InputImage );
+		const Img = OutputImage ? OutputImage : NullImage;
+		Shader.SetUniform("VertexRect", [0.75,0,0.25,1] );
+		Shader.SetUniform("TextureA", YuvImage );
 		Shader.SetUniform("TextureB",Img );
 	}
 	RenderTarget.DrawQuad( CompareShader, DrawCompare_SetUniforms );
@@ -101,14 +110,19 @@ function IsH264MetaPacket(Data)
 async function Run(Filename,EncodePreset)
 {
 	const Input = new Pop.Image(Filename);
-	Input.SetFormat('Greyscale');
 	InputImage = Input;
+
+	const Yuv = new Pop.Image();
+	Yuv.Copy(Input);
+	Yuv.SetFormat('Yuv_8_8_8_Ntsc');
+	YuvImage = Yuv;
+
 	//OutputImage = null;	//	clear for clarity, keep to help comparison
 	const Encoder = new Pop.Media.H264Encoder(EncodePreset);
-	Encoder.Encode(Input,0);
+	Encoder.Encode(Yuv,0);
 	Encoder.EncodeFinished();
 
-	const Decoder = new Pop.Media.AvcDecoder();
+	const Decoder = new Pop.Media.AvcDecoder(false);
 	
 	//	encode, decode, encode, decode etc
 	while (true)
@@ -127,9 +141,9 @@ async function Run(Filename,EncodePreset)
 		const FramePlane = Frame.Planes[0];
 		//Pop.Debug("FramePlane",JSON.stringify(FramePlane));
 		
-		//Pop.Debug("Output frame",FramePlane.GetFormat());
+		Pop.Debug("Output frame",FramePlane.GetFormat());
 		OutputImage = FramePlane;
-		OutputImage.SetFormat('Greyscale');
+		//OutputImage.SetFormat('Greyscale');
 		return;
 	}
 }
