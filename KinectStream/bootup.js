@@ -85,17 +85,25 @@ function GetH264Pixels(Planes)
 	const ChromaSize = ChromaWidth * ChromaHeight;
 	//Pop.Debug(`LumaWidth ${LumaWidth} LumaHeight ${LumaHeight} DepthPixels.length ${DepthPixels.length} ChromaWidth${ChromaWidth} ChromaHeight${ChromaHeight}`);
 	//	convert depth16 to luma
-	const YuvSize = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + (ChromaWidth * ChromaHeight);
+	const YuvSize = (LumaWidth * LumaHeight) + ChromaSize + ChromaSize;
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
-	function GetChromaIndex(x,y)
+	function GetChromaIndex(Depthx,Depthy)
 	{
-		//	gr: /2 /2 isn't writing to the correct place, only getting left half
-		x /= 4;
-		y /= 2;
-		let i = y * ChromaWidth;
-		i += x;
-		//i = Math.floor(i);
-		return i;
+		//	this is more complicated than one would assume
+		//	we need the TEXTURE BUFFER index we're writing to;
+		//	each TEXTURE row is 2x pixel rows as the chroma width is half, but
+		//	the luma width is the same, so chroma buffer looks like this
+		//	ROW1ROW2
+		//	ROW3ROW4
+		const ChromaX = Math.floor(Depthx / 2);
+		const ChromaY = Math.floor(Depthy / 2);
+		const Left = (ChromaY % 2) == 0;
+
+		const WriteX = Left ? ChromaX : ChromaX + ChromaWidth;
+		const WriteY = Math.floor(ChromaY / 2);
+
+		const WriteIndex = WriteX + (WriteY * LumaWidth);
+		return WriteIndex;
 	}
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
@@ -111,10 +119,12 @@ function GetH264Pixels(Planes)
 		*/
 		const x = Math.floor(i % LumaWidth);
 		const y = Math.floor(i / LumaWidth);
+
+		//	write indexes one 1byte planes
 		const LumaIndex = i;
 		const ChromaIndex = GetChromaIndex(x,y);
 		const ChromaUIndex = (LumaWidth * LumaHeight) + ChromaIndex;
-		const ChromaVIndex = (LumaWidth * LumaHeight) + (ChromaWidth * ChromaHeight) + ChromaIndex;
+		const ChromaVIndex = (LumaWidth * LumaHeight) + ChromaSize + ChromaIndex;
 
 		const Depth = DepthPixels[i];
 		let Depthf = Math.RangeClamped(Params.DepthMin,Params.DepthMax,Depth);

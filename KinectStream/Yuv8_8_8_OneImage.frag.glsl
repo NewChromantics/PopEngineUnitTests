@@ -104,7 +104,7 @@ float2 GetChromaUuv(float2 uv)
 	float2 RectMax = float2(1,ChromaUBottom);
 	
 	//	gr: the chroma plane is 1/4 size (0.5*0.5)
-	//		so we see 4 images side by side
+	//		so we see 2 images side by side
 	//		the ROW corresponds to the section
 	//		so sample the right section.
 	//		this needs to be way more pixel-perfect!
@@ -118,12 +118,12 @@ float2 GetChromaUuv(float2 uv)
 
 	float ChromaRows = ChromaPlaneHeight / 2;
 	float RowIndex = uv.y * ChromaRows;
-	int RowN = int(floor(RowIndex)) % 4;
+	int RowN = int(floor(RowIndex)) % 2;
 
-	float Columns[4] = {0,1,2,3};
+	float Columns[2] = {0,1};
 	
-	RectMin.x = 0.25 * (Columns[RowN]+0);
-	RectMax.x = 0.25 * (Columns[RowN]+1);
+	RectMin.x = 0.50 * (Columns[RowN]+0);
+	RectMax.x = 0.50 * (Columns[RowN]+1);
 	
 	uv = mix( RectMin, RectMax, uv );
 	return uv;
