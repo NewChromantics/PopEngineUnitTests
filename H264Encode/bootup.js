@@ -12,7 +12,9 @@ Pop.CreateColourTexture = function(Colour4)
 
 
 let InputImage = Pop.CreateColourTexture([255,0,0,255]);
-let OutputImage = Pop.CreateColourTexture([0,255,0,255]);
+let OutputImage = null;
+const NullOutputImage = Pop.CreateColourTexture([0,255,0,255]);
+
 
 let BlitShader = null;
 let CompareShader = null;
@@ -34,16 +36,18 @@ function Render(RenderTarget)
 
 	const DrawRight_SetUniforms = function(Shader)
 	{
+		const Img = OutputImage ? OutputImage : NullOutputImage;
 		Shader.SetUniform("VertexRect", [0.33,0,0.33,1] );
-		Shader.SetUniform("Texture", OutputImage );
+		Shader.SetUniform("Texture",Img );
 	}
 	RenderTarget.DrawQuad( BlitShader, DrawRight_SetUniforms );
 
 	const DrawCompare_SetUniforms = function(Shader)
 	{
+		const Img = OutputImage ? OutputImage : NullOutputImage;
 		Shader.SetUniform("VertexRect", [0.66,0,0.33,1] );
 		Shader.SetUniform("TextureA", InputImage );
-		Shader.SetUniform("TextureB", OutputImage );
+		Shader.SetUniform("TextureB",Img );
 	}
 	RenderTarget.DrawQuad( CompareShader, DrawCompare_SetUniforms );
 }
@@ -52,40 +56,81 @@ let RenderWindow = new Pop.Opengl.Window("H264");
 RenderWindow.OnRender = Render;
 RenderWindow.OnMouseMove = function(){};
 
+function GetNaluSize(Data)
+{
+	const Data4 = Data.slice(0,4);
+	if (Data[0] != 0 && Data[1] != 0 )
+		throw `Nalu[${Data4}] != 0001|001`;
+
+	if (Data[2] == 1)
+		return 3;
+	if (Data[2] == 0 && Data[3] == 1)
+		return 4;
+
+	throw `Nalu[${Data4}] != 0001|001`;
+}
+
+function IsH264MetaPacket(Data)
+{
+	const NaluSize = GetNaluSize(Data);
+	const TypeAndPriority = Data[NaluSize];
+	const Type = TypeAndPriority & 0x1f;
+	const Priority = TypeAndPriority >> 5;
+
+	const H264_SPS = 7;
+	const H264_PPS = 8;
+	const H264_SEI = 6;	//	supplimental enhancement info
+	const H264_EOS = 10;	//	endof sequence
+	const H264_EOF = 11;	//	end of stream
+	Pop.Debug('H264 packet type',Type);
+	switch (Type)
+	{
+		case H264_SPS:
+		case H264_PPS:
+		case H264_SEI:
+		case H264_EOS:
+		case H264_EOF:
+			return true;
+
+		//	picture
+		default:
+			return false;
+	}
+}
 
 async function Run(Filename,EncodePreset)
 {
 	const Input = new Pop.Image(Filename);
 	Input.SetFormat('Greyscale');
 	InputImage = Input;
+	//OutputImage = null;	//	clear for clarity, keep to help comparison
 	const Encoder = new Pop.Media.H264Encoder(EncodePreset);
-	await Encoder.Encode(Input,0);
+	Encoder.Encode(Input,0);
+	Encoder.EncodeFinished();
 
 	const Decoder = new Pop.Media.AvcDecoder();
-
+	
 	//	encode, decode, encode, decode etc
-	while ( true )
+	while (true)
 	{
+		//	pop packets until we get a picture packet
+		Pop.Debug("Wait for packet");
 		const Packet = await Encoder.WaitForNextPacket();
-		//Pop.Debug("Packet",typeof Packet);
-		if ( !Packet )
-			continue;
-		const ExtractPlanes = false;
-		const Frames = await Decoder.Decode(Packet,ExtractPlanes);
-		Pop.Debug(JSON.stringify(Frames));
-		if ( Frames.length == 0 )
+		//Pop.Debug("Packet",Array.from(Packet.Data));
+		Decoder.Decode(Packet.Data,0);
+		if (IsH264MetaPacket(Packet.Data))
 			continue;
 
-		Pop.Debug("Frames",Frames);
-		Pop.Debug(Frames.length);
-		const Frame = Frames[0].Planes[0];
-		if ( Frame )
-		{
-			Pop.Debug("Output frame",Frame.GetFormat());
-			OutputImage = Frame;
-			OutputImage.SetFormat('Greyscale');
-		}
+		const Frame = await Decoder.WaitForNextFrame();
+		Pop.Debug("Frame",JSON.stringify(Frame));
 		
+		const FramePlane = Frame.Planes[0];
+		//Pop.Debug("FramePlane",JSON.stringify(FramePlane));
+		
+		//Pop.Debug("Output frame",FramePlane.GetFormat());
+		OutputImage = FramePlane;
+		OutputImage.SetFormat('Greyscale');
+		return;
 	}
 }
 
@@ -104,7 +149,11 @@ Slider.OnChanged = function(Value)
 	if ( Value != EncodePreset || EncodePreset === false )
 	{
 		EncodePreset = Value;
-		Run('cat.jpeg',EncodePreset).then(Pop.Debug).catch(Pop.Debug);
+		function OnError(e)
+		{
+			Pop.Debug(`error ${e}`);
+		}
+		Run('cat.jpeg',EncodePreset).then().catch(OnError);
 	}
 }
 //	init
