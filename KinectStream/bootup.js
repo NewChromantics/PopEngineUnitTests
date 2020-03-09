@@ -10,7 +10,7 @@ Pop.Include('../PopEngineCommon/PopApi.js');
 Pop.Include('../PopEngineCommon/PopMath.js');	//	needed by ParamsWindow
 Pop.Include('../PopEngineCommon/ParamsWindow.js');
 Pop.Include('../PopEngineCommon/PopTexture.js');
-Pop.Include('../Common/PopShaderCache.js');
+Pop.Include('../PopEngineCommon/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
 
@@ -149,88 +149,99 @@ function GetH264Pixels(Planes)
 	return YuvImage;
 }
 
+function RenderImage(RenderTarget,Textures,Rect)
+{
+	if (!Textures)
+	{
+		RenderTarget.ClearColour(255,0,0);
+		return;
+	}
+
+	if (!Textures.length)
+	{
+		RenderTarget.ClearColour(0,0,255);
+		return;
+	}
+
+	let Texture0 = Textures[0];
+	let Texture1 = Textures[1];
+	let Texture2 = Textures[2];
+	if (!Texture1) Texture1 = BlackTexture;
+	if (!Texture2) Texture2 = BlackTexture;
+
+
+	//Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
+	let ShaderSource = BlitFragShader;
+
+	if (Texture0.GetFormat() == "YYuv_8888_Full")
+		ShaderSource = Yuv8888FragShader;
+	else if (Texture0.GetFormat() == "YYuv_8888_Ntsc")
+		ShaderSource = Yuv8888FragShader;
+	else if (Texture0.GetFormat() == "Uvy_844_Full")
+		ShaderSource = Uvy844FragShader;
+	else if (Texture0.GetFormat() == "Greyscale" && Textures.length == 3)
+		ShaderSource = Yuv8_8_8FragShader;
+	else if (Texture0.GetFormat() == "RGBA")
+		ShaderSource = BlitFragShader;
+	else if (Texture0.GetFormat() == "Greyscale")
+		ShaderSource = BlitFragShader;
+	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full" && Textures.length == 1)
+		ShaderSource = Yuv8_8_8_OneImageFragShader;
+	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc" && Textures.length == 1)
+		ShaderSource = Yuv8_8_8_OneImageFragShader;
+	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
+		ShaderSource = Yuv8888FragShader;
+	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
+		ShaderSource = Yuv8888FragShader;
+	else if (Texture0.GetFormat() == "KinectDepth")
+		ShaderSource = DepthmmFragShader;
+	else if (Texture0.GetFormat() == "Depth16mm")
+		ShaderSource = DepthmmFragShader;
+	else if (Texture0.GetFormat() == "uyvy")
+		ShaderSource = UyvyFragShader;
+	else
+	{
+		let Formats = [];
+		this.Textures.forEach(t => Formats.push(t.GetFormat()));
+		Pop.Debug("No specific shader for " + Formats.join(','));
+	}
+
+	let FragShader = Pop.GetShader(RenderTarget,ShaderSource,VertShader);
+
+	let SetUniforms = function (Shader)
+	{
+		Shader.SetUniform("VertexRect",Rect);
+		Shader.SetUniform("Texture",Texture0);
+		Shader.SetUniform("TextureWidth",Texture0.GetWidth());
+		Shader.SetUniform("TextureHeight",Texture0.GetHeight());
+		Shader.SetUniform("LumaTexture",Texture0);
+		Shader.SetUniform("ChromaTexture",Texture1);
+		Shader.SetUniform("ChromaUTexture",Texture1);
+		Shader.SetUniform("ChromaVTexture",Texture2);
+		Shader.SetUniform("Yuv_8_8_8_Texture",Texture0);
+
+		Shader.SetUniform("DepthMin",Params.DepthMin);
+		Shader.SetUniform("DepthMax",Params.DepthMax);
+	}
+	RenderTarget.DrawQuad(FragShader,SetUniforms);
+}
+
 
 function TCameraWindow(CameraName)
 {
-	this.Textures = [];
+	this.VideoTextures = [];
+	this.EncodedTextures = [];
+	this.DecodedTextures = [];
 	this.CameraFrameCounter = new Pop.FrameCounter(CameraName);
 	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264");
 	this.EncodedH264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
+	this.DecodedH264Counter = new Pop.FrameCounter(CameraName + " H264 Decoded");
 
 	this.OnRender = function (RenderTarget)
 	{
-		if (!this.Source)
-		{
-			RenderTarget.ClearColour(255,0,0);
-			return;
-		}
-
-		if (!this.Textures.length)
-		{
-			RenderTarget.ClearColour(0,0,255);
-			return;
-		}
-
-		let Texture0 = this.EncodedTexture ? this.EncodedTexture : this.Textures[0];
-		let Texture1 = this.Textures[1];
-		let Texture2 = this.Textures[2];
-		if (!Texture1) Texture1 = BlackTexture;
-		if (!Texture2) Texture2 = BlackTexture;
-		
-
-		//Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
-		let ShaderSource = BlitFragShader;
-
-		if (Texture0.GetFormat() == "YYuv_8888_Full")
-			ShaderSource = Yuv8888FragShader;
-		else if (Texture0.GetFormat() == "YYuv_8888_Ntsc")
-			ShaderSource = Yuv8888FragShader;
-		else if (Texture0.GetFormat() == "Uvy_844_Full")
-			ShaderSource = Uvy844FragShader;
-		else if (Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3)
-			ShaderSource = Yuv8_8_8FragShader;
-		else if (Texture0.GetFormat() == "RGBA")
-			ShaderSource = BlitFragShader;
-		else if (Texture0.GetFormat() == "Greyscale")
-			ShaderSource = BlitFragShader;
-		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full" && this.Textures.length == 1)
-			ShaderSource = Yuv8_8_8_OneImageFragShader;
-		else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc" && this.Textures.length == 1)
-			ShaderSource = Yuv8_8_8_OneImageFragShader;
-		else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
-			ShaderSource = Yuv8888FragShader;
-		else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
-			ShaderSource = Yuv8888FragShader;
-		else if (Texture0.GetFormat() == "KinectDepth")
-			ShaderSource = DepthmmFragShader;
-		else if (Texture0.GetFormat() == "Depth16mm")
-			ShaderSource = DepthmmFragShader;
-		else if (Texture0.GetFormat() == "uyvy")
-			ShaderSource = UyvyFragShader;
-		else
-		{
-			let Formats = [];
-			this.Textures.forEach(t => Formats.push(t.GetFormat()));
-			Pop.Debug("No specific shader for " + Formats.join(','));
-		}
-
-		let FragShader = Pop.GetShader(RenderTarget,ShaderSource);
-		
-		let SetUniforms = function (Shader)
-		{
-			Shader.SetUniform("Texture",Texture0);
-			Shader.SetUniform("TextureWidth",Texture0.GetWidth());
-			Shader.SetUniform("TextureHeight",Texture0.GetHeight());
-			Shader.SetUniform("LumaTexture",Texture0);
-			Shader.SetUniform("ChromaTexture",Texture1);
-			Shader.SetUniform("ChromaUTexture",Texture1);
-			Shader.SetUniform("ChromaVTexture",Texture2);
-			Shader.SetUniform("Yuv_8_8_8_Texture",Texture0);
-
-			Shader.SetUniform("DepthMin",Params.DepthMin);
-			Shader.SetUniform("DepthMax",Params.DepthMax);
-		}
-		RenderTarget.DrawQuad(FragShader,SetUniforms);
+		RenderImage(RenderTarget,this.VideoTextures,	[0.00,0,0.33,1]);
+		RenderImage(RenderTarget,this.EncodedTextures,	[0.33,0,0.33,1]);
+		RenderImage(RenderTarget,this.DecodedTextures,	[0.66,0,0.33,1]);
 	}
 
 	this.DecodeLoop = async function ()
@@ -238,7 +249,9 @@ function TCameraWindow(CameraName)
 		while (true)
 		{
 			const Frame = await this.Decoder.WaitForNextFrame();
-			Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
+			this.DecodedTextures = Frame.Planes;
+			this.DecodedH264Counter.Add();
+			//Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
 		}
 	}
 
@@ -272,7 +285,9 @@ function TCameraWindow(CameraName)
 			try
 			{
 				const NewFrame = await this.Source.WaitForNextFrame();
-				this.Textures = NewFrame.Planes;
+				this.VideoTextures = NewFrame.Planes;
+				this.CameraFrameCounter.Add();
+
 				const Time = NewFrame.Time ? NewFrame.Time : Pop.GetTimeNowMs();
 
 				//	remake encoder if compression changes
@@ -286,10 +301,9 @@ function TCameraWindow(CameraName)
 					this.EncoderCompression = Params.Compression;
 				}
 
-				this.EncodedTexture = GetH264Pixels(this.Textures);
-				this.Encoder.Encode(this.EncodedTexture,Time);
-				
-				this.CameraFrameCounter.Add();
+				const EncodedTexture = GetH264Pixels(this.VideoTextures);
+				this.EncodedTextures = [EncodedTexture];
+				this.Encoder.Encode(EncodedTexture,Time);				
 			}
 			catch (e)
 			{

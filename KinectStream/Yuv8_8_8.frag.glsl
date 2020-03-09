@@ -32,6 +32,9 @@ float3 LumaChromaToRgb(float Luma,float2 Chroma)
 
 void main()
 {
+	gl_FragColor = texture2D(ChromaUTexture,uv);
+	return;
+
 	float2 Sampleuv = uv;
 	
 	float Luma = texture2D( LumaTexture, Sampleuv ).x;
@@ -40,7 +43,8 @@ void main()
 	float2 ChromaUv = float2(ChromaU,ChromaV);
 
 	gl_FragColor.xyz = LumaChromaToRgb( Luma, ChromaUv);
-	//gl_FragColor.xyz = float3(Luma,Luma,Luma);
+	gl_FragColor.xyz = float3(Luma,Luma,Luma);
+	gl_FragColor.xyz = float3(ChromaU,ChromaU,ChromaU);
 	gl_FragColor.w = 1.0;
 }
 
