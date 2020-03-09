@@ -28,11 +28,12 @@ let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 
 const Params = {};
-Params.DepthMin = 1;
-Params.DepthMax = 1000;
-Params.Compression = 0;
+Params.DepthMin = 100;
+Params.DepthMax = 4000;
+Params.Compression = 3;
 Params.ChromaRanges = 6;
-Params.DepthSquared = false;
+Params.PingPongLuma = true;
+Params.DepthSquared = true;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -40,6 +41,7 @@ ParamsWindow.AddParam('DepthMax',0,65500);
 ParamsWindow.AddParam('Compression',0,9,Math.floor);
 ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
 ParamsWindow.AddParam('DepthSquared');
+ParamsWindow.AddParam('PingPongLuma');
 
 function GetUvRanges(RangeCount)
 {
@@ -137,16 +139,22 @@ function GetH264Pixels(Planes)
 		}
 		
 		const DepthScaled = Depthf * RangeLengthMin1;
-		const Remain = DepthScaled % 1;
+		let Remain = DepthScaled % 1;
 		let RangeIndex = Math.floor(DepthScaled);
 		RangeIndex = Math.min(RangeIndex,RangeLengthMin1);
 		//Pop.Debug(Depthf,Remain,RangeIndex);
 		//continue;
+
+		//	make luma go 0-1 1-0 0-1 so luma image wont have edges for compression
+		if (Params.PingPongLuma)
+			if (RangeIndex & 1)
+				Remain = 1 - Remain;
+
 		const Rangeuv = Ranges[RangeIndex];
 		const Luma = Remain;
 		//const Luma = Depthf;
 		//const Luma = RangeIndex / Ranges.length;
-
+		
 		Yuv_8_8_8[LumaIndex] = Luma * 255;
 		Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
 		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
