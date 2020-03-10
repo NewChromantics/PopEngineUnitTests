@@ -12,6 +12,7 @@ Pop.Include('../PopEngineCommon/ParamsWindow.js');
 Pop.Include('../PopEngineCommon/PopTexture.js');
 Pop.Include('../PopEngineCommon/PopShaderCache.js');
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
+Pop.Include('../PopEngineCommon/PopH264.js');
 
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
@@ -34,6 +35,7 @@ Params.Compression = 3;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
+Params.WebsocketPort = 80;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -42,6 +44,103 @@ ParamsWindow.AddParam('Compression',0,9,Math.floor);
 ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
 ParamsWindow.AddParam('DepthSquared');
 ParamsWindow.AddParam('PingPongLuma');
+ParamsWindow.AddParam('PingPongLuma');
+ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
+
+
+let FrameQueue = [];
+
+function QueueFrame(Data,Meta,Keyframe)
+{
+	const FramePacket = {};
+	FramePacket.Meta = Meta;
+	FramePacket.Data = Data;
+	FramePacket.Keyframe = Keyframe;
+	FrameQueue.push(FramePacket);
+}
+
+function PopNextFrameQueueFrame()
+{
+	function IsKeyframe(Frame)
+	{
+		return Frame.Keyframe;
+	}
+
+	if (FrameQueue.length == 0)
+		return null;
+
+	//	try sending first keyframe first
+	const FirstKeyframeIndex = FrameQueue.findIndex(IsKeyframe);
+
+	//	if no keyframe, send latest frame
+	//const SendFrameIndex = (FirstKeyframeIndex >= 0) ? FirstKeyframeIndex : FrameQueue.length - 1;
+	const SendFrameIndex = 0;
+
+	//	delete frames before
+	FrameQueue.splice(0,SendFrameIndex);
+	Pop.Debug(`Dropped ${SendFrameIndex} queued frames`);
+	const Frame = FrameQueue.shift();
+	return Frame;
+}
+
+async function SendNextFrame(SendFunc)
+{
+	//	send latest keyframe, or non-keyframe if none
+	const Frame = PopNextFrameQueueFrame();
+	if (Frame === null)
+	{
+		await Pop.Yield(20);
+		return;
+	}
+
+	SendFunc(JSON.stringify(Frame.Meta));
+	SendFunc(Frame.Data);
+}
+
+async function WebsocketLoop(Ports,SendFrameFunc)
+{
+	let PortIndex = null;
+	while (true)
+	{
+		PortIndex = (PortIndex === null) ? 0 : PortIndex++;
+		PortIndex = PortIndex % Ports.length;
+		const Port = Ports[PortIndex]
+		const Server = new Pop.Websocket.Server(Port);
+		//await Server.WaitForConnect();
+		while (true)
+		{
+			//	wait for at least one peer
+			{
+				const Peers = Server.GetPeers();
+				if (Peers.length == 0)
+				{
+					await Pop.Yield(500);
+					continue;
+				}
+			}
+
+			function Send(Message)
+			{
+				const Peers = Server.GetPeers();
+				function SendToPeer(Peer)
+				{
+					try
+					{
+						Server.Send(Peer,Message);
+					}
+					catch (e)
+					{
+						Pop.Debug(`SendFrameToPeer(${Peer}) error; ${e}`);
+					}
+				}
+				Peers.forEach(SendToPeer);
+			}
+			await SendFrameFunc(Send);
+		}
+	}
+}
+
+
 
 function GetUvRanges(RangeCount)
 {
@@ -139,8 +238,8 @@ function GetH264Pixels(Planes)
 		}
 		
 		const DepthScaled = Depthf * RangeLengthMin1;
-		let Remain = DepthScaled % 1;
 		let RangeIndex = Math.floor(DepthScaled);
+		let Remain = DepthScaled - RangeIndex;
 		RangeIndex = Math.min(RangeIndex,RangeLengthMin1);
 		//Pop.Debug(Depthf,Remain,RangeIndex);
 		//continue;
@@ -291,7 +390,15 @@ function TCameraWindow(CameraName)
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
 			this.EncodedH264Counter.Add();
 
-			//	now re-decode
+			const Meta = {};
+			Meta.Time = Packet.Time;
+			const IsKeyframe = Pop.H264.IsKeyframe(Packet.Data);
+
+			//	send out packet
+			Pop.Debug("H264 packet is keyframe;",IsKeyframe,"x" + Packet.Data.length);
+			QueueFrame(Packet.Data,Meta,IsKeyframe);
+
+			//	queue for re-decode for testing
 			this.Decoder.Decode(Packet.Data);
 		}
 	}
@@ -408,3 +515,6 @@ async function FindCamerasLoop()
 
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
+
+const Ports = [Params.WebsocketPort];
+WebsocketLoop(Ports,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);

@@ -2,6 +2,8 @@ let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
 let CompareFragShader = Pop.LoadFileAsString('Compare.frag.glsl');
 
+//Pop.Include('../PopEngineCommon/PopH264.js');
+
 
 Pop.CreateColourTexture = function(Colour4)
 {
