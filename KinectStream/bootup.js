@@ -49,6 +49,18 @@ ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
 
 
 let FrameQueue = [];
+let CriticalFrames = [];	//	save SPS/PPS frames for new peers
+
+function OnNewPeer(Peer,Server)
+{
+	function SendFrame(Frame)
+	{
+		Server.Send(Peer,JSON.stringify(Frame.Meta));
+		Server.Send(Peer,Frame.Data);
+	}
+	Pop.Debug(`Sending new peer(${Peer}) ${CriticalFrames.length} frames`);
+	CriticalFrames.forEach(SendFrame);
+}
 
 function QueueFrame(Data,Meta,Keyframe)
 {
@@ -57,6 +69,9 @@ function QueueFrame(Data,Meta,Keyframe)
 	FramePacket.Data = Data;
 	FramePacket.Keyframe = Keyframe;
 	FrameQueue.push(FramePacket);
+
+	if (Pop.H264.IsKeyframe(Data))
+		CriticalFrames.push(FramePacket);
 }
 
 function PopNextFrameQueueFrame()
@@ -97,9 +112,11 @@ async function SendNextFrame(SendFunc)
 	SendFunc(Frame.Data);
 }
 
-async function WebsocketLoop(Ports,SendFrameFunc)
+async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 {
 	let PortIndex = null;
+	let ExistingPeers = [];
+
 	while (true)
 	{
 		PortIndex = (PortIndex === null) ? 0 : PortIndex++;
@@ -117,6 +134,11 @@ async function WebsocketLoop(Ports,SendFrameFunc)
 					await Pop.Yield(500);
 					continue;
 				}
+
+				//	look for new peers
+				const NewPeers = Peers.filter(p => !ExistingPeers.includes(p));
+				NewPeers.forEach( p => OnNewPeer(p,Server) );
+				ExistingPeers = Peers;
 			}
 
 			function Send(Message)
@@ -517,4 +539,4 @@ async function FindCamerasLoop()
 FindCamerasLoop().catch(Pop.Debug);
 
 const Ports = [Params.WebsocketPort];
-WebsocketLoop(Ports,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+WebsocketLoop(Ports,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
