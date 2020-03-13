@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="win95.css" />
+    <style>
+        #Error {
+            background: #fcc;
+            padding: 1em;
+            border: solid 1px #ccc;
+        }
+    </style>
+    <script src='PopEngineCommon/PopWebApi.js'></script>
+    <script src='PopEngineCommon/PopApi.js'></script>
+    <script src='PopEngineCommon/PopMath.js'></script>
+    <script src='PopEngineCommon/PopWebGuiApi.js'></script>
+    <script src='PopEngineCommon/PopWebSocketApi.js'></script>
+    <script src='PopEngineCommon/ParamsWindow.js'></script>
+</head>
+<body>
+    <div id="Error" style="visibility:hidden"> Unspecified Error</div>
+    Loading initial state...
+    <script>
+        function OnError(Error)
+        {
+            const Div = document.getElementById('Error');
+            Div.innerText = Error;
+            Div.style.visibility = 'visible';
+            console.error("Error",Error);
+        }
+
+        let Params = {};
+        let ParamMetas = null;
+        let ParamsWindow = null;
+
+        let OnParamChangedFunc = null;
+        function OnParamChanged(Changed)
+        {
+            // relay change to server
+            if (OnParamChangedFunc)
+                OnParamChangedFunc(Changed);
+        }
+
+        async function FetchJson(Url)
+        {
+            const Response = await fetch(Url);
+            if (!Response.ok)
+                throw "Fetching " + Url + " returned " + Response.status + "/" + Response.statusText;
+            const Json = await Response.json();
+            return Json;
+        }
+        async function FetchString(Url)
+        {
+            const Response = await fetch(Url);
+            if (!Response.ok)
+                throw "Fetching " + Url + " returned " + Response.status + "/" + Response.statusText;
+            const Json = await Response.text();
+            return Json;
+        }
+
+
+        async function Startup()
+        {
+            const WebsocketUrl = await FetchString('Websocket.json');
+
+            //  create websocket loop
+            //while (true)
+            {
+                const Socket = new Pop.Websocket.Client(WebsocketUrl);
+                await Socket.WaitForConnect();
+                OnParamChangedFunc = function (Params,ChangedParam,FinalValue)
+                {
+                    const ParamsString = JSON.stringify(Params,null,'\t');
+                    Pop.Debug("Sending new params");
+                    Socket.Send(ParamsString);
+                }
+                while (true)
+                {
+                    const Message = await Socket.WaitForMessage();
+                    const NewParams = JSON.parse(Message);
+                    Pop.Debug("Got new params");
+                    await SetParams(NewParams);
+                }
+            }
+        }
+
+        Startup().then().catch(OnError);
+    </script>
+</body>
+</html>

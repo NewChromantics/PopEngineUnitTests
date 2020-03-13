@@ -35,8 +35,7 @@ Params.Compression = 3;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
-Params.WebsocketPort = 81;
-Params.HttpViewerPort = 80;
+Params.WebsocketPort = 80;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -48,8 +47,6 @@ ParamsWindow.AddParam('PingPongLuma');
 ParamsWindow.AddParam('PingPongLuma');
 ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
 
-//	replace this function when websocket boots
-let GetWebsocketUrl = null;
 
 let FrameQueue = [];
 let CriticalFrames = [];	//	save SPS/PPS frames for new peers
@@ -126,13 +123,6 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 		PortIndex = PortIndex % Ports.length;
 		const Port = Ports[PortIndex]
 		const Server = new Pop.Websocket.Server(Port);
-
-		GetWebsocketUrl = function ()
-		{
-			const Addresses = Server.GetAddress();
-			return "ws://" + Addresses[0].Address;
-		}
-
 		//await Server.WaitForConnect();
 		while (true)
 		{
@@ -545,57 +535,8 @@ async function FindCamerasLoop()
 	}
 }
 
-function CreateViewerWebserver(Port=80)
-{
-	function HandleVirtualFile(Response)
-	{
-		const Filename = Response.Url;
-
-		if (Filename == "Websocket.json")
-		{
-			if (!GetWebsocketUrl)
-			{
-				Response.Content = "Websocket not running";
-				Response.StatusCode = 500;
-				return;
-			}
-
-			Response.Content = GetWebsocketUrl();
-			Response.StatusCode = 200;
-			return;
-		}
-
-		//	redirect PopEngine files to local filename
-		if (Filename.startsWith('PopEngineCommon/'))
-		{
-			return "../" + Filename;
-		}
-
-		//	some other file
-		return Response;
-	}
-
-	//	serve HTTP, which delivers a page that creates a params window!
-	const Http = new Pop.Http.Server(Port,HandleVirtualFile);
-	const Address = Http.GetAddress();
-	Pop.Debug("Http server:",JSON.stringify(Address));
-
-	Http.GetUrl = function ()
-	{
-		return 'http://' + Address[0].Address;
-	}
-	//	gr: this should change to be a WaitForRequest(UrlMatch) and default will serve files
-
-	//	note: this will GC the server if you don't save the variable!
-	return Http;
-}
-
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
 const Ports = [Params.WebsocketPort];
 WebsocketLoop(Ports,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
-
-const HttpServer = CreateViewerWebserver(Params.HttpViewerPort);
-Pop.Debug("Showing web page at url",HttpServer.GetUrl());
-Pop.ShowWebPage(HttpServer.GetUrl());
