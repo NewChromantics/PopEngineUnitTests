@@ -14,9 +14,11 @@ const ImageMap = new Pop.Gui.ImageMap(Window,ImageMapRect);
 async function ImageMapLoop()
 {
 	let Pixels = new Pop.Image('cat.jpeg');
-	let CursorMap = [ [0,1],[2,3] ];	//	2x2
-	ImageMap.SetImage(Pixels);
-	ImageMap.SetCursorMap(CursorMap,['pointer','help','not-allowed','wait']);
+	let CursorMap = [0,1,2,3];	//	2x2
+	const CursorMapPixels = new Pop.Image();
+	CursorMapPixels.WritePixels(2,2,CursorMap,'Greyscale');
+	//ImageMap.SetImage(Pixels);
+	ImageMap.SetCursorMap(CursorMapPixels,['Hand','Help','NotAllowed','Wait']);
 
 	while (ImageMap)
 	{
