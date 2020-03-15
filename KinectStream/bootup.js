@@ -189,25 +189,24 @@ function GetUvRanges(RangeCount)
 	return Ranges;
 }
 
-//	convert a set of textures to YUV_8_8_8 to encode
-function GetH264Pixels(Planes)
+
+
+function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,UvRanges)
 {
-	//	find the depth plane
-	function IsDepthPlane(Image)
-	{
-		return Image.GetFormat() == 'Depth16mm';
-	}
-	Planes = Planes.filter(IsDepthPlane);
-	const DepthPlane = Planes[0];
-	const DepthPixels = DepthPlane.GetPixelBuffer();
-	const LumaWidth = DepthPlane.GetWidth();
-	const LumaHeight = DepthPlane.GetHeight();
+	//return Depth8Plane;
+}
+
+
+function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,UvRanges)
+{
+	const DepthPixels = Depth16Plane;
+	const LumaWidth = DepthWidth;
+	const LumaHeight = DepthHeight;
 
 	const ChromaWidth = Math.floor(LumaWidth / 2);
 	const ChromaHeight = Math.floor(LumaHeight / 2);
 	const ChromaSize = ChromaWidth * ChromaHeight;
-	//Pop.Debug(`LumaWidth ${LumaWidth} LumaHeight ${LumaHeight} DepthPixels.length ${DepthPixels.length} ChromaWidth${ChromaWidth} ChromaHeight${ChromaHeight}`);
-	//	convert depth16 to luma
+
 	const YuvSize = (LumaWidth * LumaHeight) + ChromaSize + ChromaSize;
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
 	function GetChromaIndex(Depthx,Depthy)
@@ -229,11 +228,10 @@ function GetH264Pixels(Planes)
 		return WriteIndex;
 	}
 
-	const Ranges = GetUvRanges(Params.ChromaRanges);
-	const RangeLengthMin1 = Math.max(1,Ranges.length - 1);
-	//Pop.Debug(JSON.stringify(Ranges));
+	const RangeLengthMin1 = Math.max(1,UvRanges.length - 1);
+	//Pop.Debug(JSON.stringify(UvRanges));
 
-	for (let i = 0;i < DepthPixels.length;i ++ )
+	for (let i = 0;i < DepthPixels.length;i++)
 	{
 		/*	test speed
 		const f = i / DepthPixels.length;
@@ -258,7 +256,7 @@ function GetH264Pixels(Planes)
 			Depthf *= Depthf;
 			Depthf = 1 - Depthf;
 		}
-		
+
 		const DepthScaled = Depthf * RangeLengthMin1;
 		let RangeIndex = Math.floor(DepthScaled);
 		let Remain = DepthScaled - RangeIndex;
@@ -271,19 +269,42 @@ function GetH264Pixels(Planes)
 			if (RangeIndex & 1)
 				Remain = 1 - Remain;
 
-		const Rangeuv = Ranges[RangeIndex];
+		const Rangeuv = UvRanges[RangeIndex];
 		const Luma = Remain;
 		//const Luma = Depthf;
 		//const Luma = RangeIndex / Ranges.length;
-		
+
 		Yuv_8_8_8[LumaIndex] = Luma * 255;
 		Yuv_8_8_8[ChromaUIndex] = Rangeuv[0] * 255;
 		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
 		//if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
 		//	Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
 	}
+
+	return Yuv_8_8_8;
+}
+
+
+
+//	convert a set of textures to YUV_8_8_8 to encode
+function GetH264Pixels(Planes)
+{
+	//	find the depth plane
+	function IsDepthPlane(Image)
+	{
+		return Image.GetFormat() == 'Depth16mm';
+	}
+	Planes = Planes.filter(IsDepthPlane);
+	const DepthPlane = Planes[0];
+	const DepthPixels = DepthPlane.GetPixelBuffer();
+	const DepthWidth = DepthPlane.GetWidth();
+	const DepthHeight = DepthPlane.GetHeight();
+
+	const Ranges = GetUvRanges(Params.ChromaRanges);
+	const Yuv_8_8_8 = Depth16ToYuv_Js(DepthPixels,DepthWidth,DepthHeight,Ranges);
+
 	const YuvImage = new Pop.Image();
-	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
 	YuvImage.SetLinearFilter(false);
 	return YuvImage;
 }
