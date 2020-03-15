@@ -208,8 +208,6 @@ catch (e)
 
 function CompileWasm(WatCode)
 {
-	//const WasmCode = Pop.LoadFileAsArrayBuffer('Depth16ToYuv/Depth16ToYuv.wasm');
-
 	//	WAT to wasm compiler ripped from
 	//	https://webassembly.github.io/wabt/demo/wat2wasm/
 	const Features = { "exceptions": false,"mutable_globals": true,"sat_float_to_int": false,"sign_extension": false,"simd": false,"threads": false,"multi_value": false,"tail_call": false,"bulk_memory": false,"reference_types": false };
@@ -291,9 +289,20 @@ function GetWasmModule(WatFilename)
 		return Math.ceil(Bytes / PageSize);
 	}
 
+	let WasmCode;
+
 	//	get source and compile it to wasm
-	const WatCode = Pop.LoadFileAsString(WatFilename);
-	const WasmCode = CompileWasm(WatCode);
+	const WasmFilename = WatFilename.replace('.wat','.wasm');
+	if (Pop.FileExists(WasmFilename))
+	{
+		Pop.Debug("Using cached/precompiled WASM",WasmFilename);
+		WasmCode = Pop.LoadFileAsArrayBuffer(WasmFilename);
+	}
+	else
+	{
+		const WatCode = Pop.LoadFileAsString(WatFilename);
+		WasmCode = CompileWasm(WatCode);
+	}
 	let WasmImports = {};
 
 	/*	gr: not sure this is having any effect, can't get constructor right?
