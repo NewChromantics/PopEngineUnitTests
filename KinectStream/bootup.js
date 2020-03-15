@@ -189,15 +189,175 @@ function GetUvRanges(RangeCount)
 	return Ranges;
 }
 
-
-
-function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,UvRanges)
+let Wabt = null;
+try
 {
+	Pop.Include('libwabt.js');
+	function LoadWabt(Module)
+	{
+		Pop.Debug('LoadWabt()',Module);
+		Wabt = Module;
+	}
+	//	supposed to be a promise, but no catch... assuming its a promise wrapper
+	WabtModule().then(LoadWabt);//.catch(Pop.Debug);
+}
+catch (e)
+{
+	Pop.Debug("libwabt error",e);
+}
+
+function CompileWasm(WatCode)
+{
+	//const WasmCode = Pop.LoadFileAsArrayBuffer('Depth16ToYuv/Depth16ToYuv.wasm');
+
+	//	WAT to wasm compiler ripped from
+	//	https://webassembly.github.io/wabt/demo/wat2wasm/
+	const Features = { "exceptions": false,"mutable_globals": true,"sat_float_to_int": false,"sign_extension": false,"simd": false,"threads": false,"multi_value": false,"tail_call": false,"bulk_memory": false,"reference_types": false };
+	const Module = Wabt.parseWat('test.wast',WatCode,Features);
+	Module.resolveNames();
+	Module.validate(Features);
+	const BinaryOutput = Module.toBinary({ log: true,write_debug_names: true });
+	const BinaryArray = BinaryOutput.buffer;
+	Pop.Debug(BinaryOutput.log);
+
+	return BinaryArray;
+}
+
+const WasmCache = {};
+
+Pop.Wasm = {};
+
+Pop.Wasm.Module = class
+{
+	constructor()
+	{
+		this.Module = null;
+		this.Instance = null;
+		this.UsedBytes = 0;
+	}
+
+	GetMemory()
+	{
+		return this.Instance.exports.memory;
+	}
+
+	ResetHeap()
+	{
+		this.UsedBytes = 0;
+	}
+
+	HeapAlloc(Size)
+	{
+		const Offset = this.UsedBytes;
+		this.UsedBytes += Size;
+
+		//	realloc if we need to
+		const NewBytesUsed = this.UsedBytes;
+
+		const Memory = this.GetMemory();
+		const MaxBytes = Memory.buffer.byteLength;
+		if (NewBytesUsed > MaxBytes)
+		{
+			const PageSize = 64 * 1024;
+			const NewPages = Math.ceil((NewBytesUsed - MaxBytes) / PageSize);
+			Pop.Debug(`Reallocating heap in WASM module ${NewBytesUsed} > ${MaxBytes}. New Pages x${NewPages}`);
+			Memory.grow(NewPages);
+			Pop.Debug(`New WASM module heap size ${Memory.buffer.byteLength}`);
+		}
+
+		return Offset;
+	}
+
+	HeapAllocArray(ArrayType,Length)
+	{
+		const ElementSize = ArrayType.BYTES_PER_ELEMENT;
+		const ByteOffset = this.HeapAlloc(Length * ElementSize);
+		const Memory = this.GetMemory();
+		return new ArrayType(Memory.buffer,ByteOffset,Length);
+	}
+}
+
+function GetWasmModule(WatFilename)
+{
+	if (WasmCache.hasOwnProperty(WatFilename))
+	{
+		WasmCache[WatFilename].ResetHeap();
+		return WasmCache[WatFilename];
+	}
+
+	const PageSize = 64 * 1024;
+	function BytesToPages(Bytes)
+	{
+		return Math.ceil(Bytes / PageSize);
+	}
+
+	//	get source and compile it to wasm
+	const WatCode = Pop.LoadFileAsString(WatFilename);
+	const WasmCode = CompileWasm(WatCode);
+	let WasmImports = {};
+
+	/*	gr: not sure this is having any effect, can't get constructor right?
+	const MaxPages = BytesToPages(64 * 1024 * 1024);
+	const InitialPages = MaxPages;
+	Pop.Debug(`Allocating ${MaxSizeBytes / 1024 / 1024}mb`);
+	const Memory = new WebAssembly.Memory({ initial: InitialPages,maximum: MaxPages });
+	Pop.Debug("WASM instance memory buffer:",Memory.buffer.byteLength);
+	Pop.Debug("WASM instance memory buffer maximum:",Memory.maximum);
+
+	WasmImports.env = {};
+	WasmImports.env.memory = Memory;
+	*/
+	const Wasm = new Pop.Wasm.Module();
+	Wasm.Module = new WebAssembly.Module(WasmCode);
+	Wasm.Instance = new WebAssembly.Instance(Wasm.Module,WasmImports);
+
+	//Pop.Debug("REAL WASM instance memory buffer:",Wasm.Instance.exports.memory.buffer.byteLength);
+
+	WasmCache[WatFilename] = Wasm;
+	return Wasm;
+}
+
+
+
+//DepthPixels,DepthWidth,DepthHeight,Ranges
+function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
+{
+	const TimerStart = Pop.GetTimeNowMs();
+	const WasmModule = GetWasmModule('Depth16ToYuv/Depth16ToYuv.wat');
+
+	const LumaWidth = DepthWidth;
+	const LumaHeight = DepthHeight;
+	const LumaSize = LumaWidth * LumaHeight;
+	const ChromaWidth = Math.floor(LumaWidth / 2);
+	const ChromaHeight = Math.floor(LumaHeight / 2);
+	const ChromaSize = ChromaWidth * ChromaHeight;
+	const YuvSize = LumaSize + ChromaSize + ChromaSize;
+
+	const w = DepthWidth;
+	const h = DepthHeight;
+	const Depth16 = WasmModule.HeapAllocArray(Uint16Array,w * h);
+	const Yuv8_8_8 = WasmModule.HeapAllocArray(Uint8Array,YuvSize);
+	Depth16.set(Depth16Plane,0,Depth16Plane.length);
+
+	//void Depth16ToYuv(uint16_t * Depth16Plane,uint8_t * Yuv8_8_8Plane,int Width,int Height,int DepthMin,int DepthMax)
+
+	//	this can throw first time if HeapAlloc resizes
+	WasmModule.Instance.exports.Depth16ToYuv(Depth16.byteOffset,Yuv8_8_8.byteOffset,w,h,DepthMin,DepthMax);
+	
+	//Pop.Debug(Depth16);
+	//Pop.Debug(Yuv8_8_8);
+	//	if we don't copy, we get some memory access error... but why the module still exists...
+	const YuvCopy = new Uint8Array(Yuv8_8_8);
+
+	const TimerEnd = Pop.GetTimeNowMs();
+	Pop.Debug(`Wasm took ${TimerEnd - TimerStart}ms`);
+	return YuvCopy;
+//log(new Uint8Array(wasmMemory.buffer));
 	//return Depth8Plane;
 }
 
 
-function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,UvRanges)
+function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
 {
 	const DepthPixels = Depth16Plane;
 	const LumaWidth = DepthWidth;
@@ -248,7 +408,7 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,UvRanges)
 		const ChromaVIndex = (LumaWidth * LumaHeight) + ChromaSize + ChromaIndex;
 
 		const Depth = DepthPixels[i];
-		let Depthf = Math.RangeClamped(Params.DepthMin,Params.DepthMax,Depth);
+		let Depthf = Math.RangeClamped(DepthMin,DepthMax,Depth);
 
 		if (Params.DepthSquared)
 		{
@@ -301,7 +461,17 @@ function GetH264Pixels(Planes)
 	const DepthHeight = DepthPlane.GetHeight();
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
-	const Yuv_8_8_8 = Depth16ToYuv_Js(DepthPixels,DepthWidth,DepthHeight,Ranges);
+
+	let Yuv_8_8_8;
+	try
+	{
+		Yuv_8_8_8 = Depth16ToYuv_Wasm(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
+	}
+	catch (e)
+	{
+		Pop.Debug("Wasm error",e);
+		Yuv_8_8_8 = Depth16ToYuv_Js(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
+	}
 
 	const YuvImage = new Pop.Image();
 	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
