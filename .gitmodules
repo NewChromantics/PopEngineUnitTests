@@ -1,3 +1,6 @@
 [submodule "PopEngineCommon"]
 	path = PopEngineCommon
 	url = https://github.com/NewChromantics/PopEngineCommon.git
+[submodule "KinectStream/PopDepthToYuv"]
+	path = KinectStream/PopDepthToYuv
+	url = https://github.com/SoylentGraham/PopDepthToYuv.git
