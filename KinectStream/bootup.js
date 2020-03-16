@@ -305,6 +305,7 @@ function GetWasmModule(WatFilename)
 		WasmCode = CompileWasm(WatCode);
 	}
 	let WasmImports = {};
+	//let WasmImports = undefined;
 
 	/*	gr: not sure this is having any effect, can't get constructor right?
 	const MaxPages = BytesToPages(64 * 1024 * 1024);
@@ -350,9 +351,12 @@ function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax
 	Depth16.set(Depth16Plane,0,Depth16Plane.length);
 
 	//void Depth16ToYuv(uint16_t * Depth16Plane,uint8_t * Yuv8_8_8Plane,int Width,int Height,int DepthMin,int DepthMax)
+	const UvRangesUnrolled = GetUvRangesUnrolledFloatArray(UvRanges);
+	const UvRangesf = WasmModule.HeapAllocArray(Float32Array,UvRangesUnrolled.length);
+	UvRangesf.set(UvRangesUnrolled,0,UvRangesUnrolled.length);
 
 	//	this can throw first time if HeapAlloc resizes
-	WasmModule.Instance.exports.Depth16ToYuv(Depth16.byteOffset,Yuv8_8_8.byteOffset,w,h,DepthMin,DepthMax);
+	WasmModule.Instance.exports.Depth16ToYuv(Depth16.byteOffset,Yuv8_8_8.byteOffset,w,h,DepthMin,DepthMax,UvRangesf.byteOffset,UvRanges.length);
 	
 	//Pop.Debug(Depth16);
 	//Pop.Debug(Yuv8_8_8);
@@ -374,14 +378,25 @@ function GetDepth16ToYuvDllFunction()
 	if (Depth16ToYuvDll_Functor)
 		return Depth16ToYuvDll_Functor;
 
-
 	Depth16ToYuvDll = new Pop.Dll.Library('PopDepthToYuv/Depth16ToYuv.dll');
 	//const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax);";
-	const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int32_t Width, int32_t Height, int32_t DepthMin, int32_t DepthMax);";
+	const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, uint32_t Width, uint32_t Height, uint32_t DepthMin, uint32_t DepthMax,float* UvRanges,uint32_t UvRangeCount);";
 	Pop.Debug("FunctionDeclaration",FunctionDeclaration);
 	//	gr: this is throwing, but no error!?
 	Depth16ToYuvDll_Functor = Depth16ToYuvDll.GetFunctionFromDeclaration(FunctionDeclaration);
 	return Depth16ToYuvDll_Functor;
+}
+
+function GetUvRangesUnrolledFloatArray(UvRanges)
+{
+	const UvRangesf = new Float32Array(UvRanges.length * 2);
+	function PushUvRange(Uv,Index)
+	{
+		UvRangesf[(Index * 2) + 0] = Uv[0];
+		UvRangesf[(Index * 2) + 1] = Uv[1];
+	}
+	UvRanges.forEach(PushUvRange);
+	return UvRangesf;
 }
 
 function Depth16ToYuv_Dll(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
@@ -398,7 +413,9 @@ function Depth16ToYuv_Dll(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,
 
 	const Yuv8_8_8 = new Uint8Array(YuvSize);
 
-	Functor(Depth16Plane,Yuv8_8_8,DepthWidth,DepthHeight,DepthMin,DepthMax);
+	const UvRangesf = GetUvRangesUnrolledFloatArray(UvRanges);
+
+	Functor(Depth16Plane,Yuv8_8_8,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRangesf,UvRanges.length);
 
 	//Pop.Debug(Depth16Plane);
 	//Pop.Debug(Yuv8_8_8);
