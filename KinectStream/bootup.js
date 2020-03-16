@@ -333,7 +333,7 @@ function GetWasmModule(WatFilename)
 function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
 {
 	const TimerStart = Pop.GetTimeNowMs();
-	const WasmModule = GetWasmModule('Depth16ToYuv/Depth16ToYuv.wat');
+	const WasmModule = GetWasmModule('PopDepthToYuv/Depth16ToYuv.wat');
 
 	const LumaWidth = DepthWidth;
 	const LumaHeight = DepthHeight;
@@ -375,7 +375,7 @@ function GetDepth16ToYuvDllFunction()
 		return Depth16ToYuvDll_Functor;
 
 
-	Depth16ToYuvDll = new Pop.Dll.Library('Depth16ToYuv/Depth16ToYuv.dll');
+	Depth16ToYuvDll = new Pop.Dll.Library('PopDepthToYuv/Depth16ToYuv.dll');
 	//const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax);";
 	const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int32_t Width, int32_t Height, int32_t DepthMin, int32_t DepthMax);";
 	Pop.Debug("FunctionDeclaration",FunctionDeclaration);
