@@ -1,7 +1,13 @@
-#include <math.h>
+//	"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe" Depth16ToYuv.c /FeDepth16ToYuv.dll /O2 /link /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\lib\x64" /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\um\x64" /DLL /LIBPATH:"D:\Windows Kits\10\Lib\10.0.18362.0\ucrt\x64"
+#define EXPORT	__declspec( dllexport )
 
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
+
+int Floor(float f)
+{
+	return (int)f;
+}
 
 int Min(int a, int b)
 {
@@ -55,7 +61,7 @@ struct uint8_2
 	uint8_t y;
 };
 
-void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax)
+EXPORT void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax)
 {
 	int LumaSize = Width * Height;
 	int LumaWidth = Width;
@@ -88,9 +94,9 @@ void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int
 		//float Depthf = Range( DepthMin, DepthMax, Depth16 );
 
 		float DepthScaled = Depthf * (float)RangeLengthMin1;
-		int RangeIndex = (int)floorf(DepthScaled);
+		int RangeIndex = Floor(DepthScaled);
 		//	float Remain = DepthScaled - RangeIndex;
-		float Remain = DepthScaled - floorf(DepthScaled);
+		float Remain = DepthScaled - Floor(DepthScaled);
 		RangeIndex = Min(RangeIndex, RangeLengthMin1);
 
 		/*

@@ -206,6 +206,7 @@ catch (e)
 	Pop.Debug("libwabt error",e);
 }
 
+
 function CompileWasm(WatCode)
 {
 	//	WAT to wasm compiler ripped from
@@ -365,6 +366,48 @@ function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax
 	//return Depth8Plane;
 }
 
+Pop.Include('../PopEngineCommon/PopDll.js');
+let Depth16ToYuvDll = null;
+let Depth16ToYuvDll_Functor = null;
+function GetDepth16ToYuvDllFunction()
+{
+	if (Depth16ToYuvDll_Functor)
+		return Depth16ToYuvDll_Functor;
+
+
+	Depth16ToYuvDll = new Pop.Dll.Library('Depth16ToYuv/Depth16ToYuv.dll');
+	//const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax);";
+	const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int32_t Width, int32_t Height, int32_t DepthMin, int32_t DepthMax);";
+	Pop.Debug("FunctionDeclaration",FunctionDeclaration);
+	//	gr: this is throwing, but no error!?
+	Depth16ToYuvDll_Functor = Depth16ToYuvDll.GetFunctionFromDeclaration(FunctionDeclaration);
+	return Depth16ToYuvDll_Functor;
+}
+
+function Depth16ToYuv_Dll(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
+{
+	const TimerStart = Pop.GetTimeNowMs();
+	const Functor = GetDepth16ToYuvDllFunction();
+	const LumaWidth = DepthWidth;
+	const LumaHeight = DepthHeight;
+	const LumaSize = LumaWidth * LumaHeight;
+	const ChromaWidth = Math.floor(LumaWidth / 2);
+	const ChromaHeight = Math.floor(LumaHeight / 2);
+	const ChromaSize = ChromaWidth * ChromaHeight;
+	const YuvSize = LumaSize + ChromaSize + ChromaSize;
+
+	const Yuv8_8_8 = new Uint8Array(YuvSize);
+
+	Functor(Depth16Plane,Yuv8_8_8,DepthWidth,DepthHeight,DepthMin,DepthMax);
+
+	//Pop.Debug(Depth16Plane);
+	//Pop.Debug(Yuv8_8_8);
+
+	const TimerEnd = Pop.GetTimeNowMs();
+	Pop.Debug(`DLL took ${TimerEnd - TimerStart}ms`);
+	return Yuv8_8_8;
+}
+
 
 function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
 {
@@ -472,14 +515,19 @@ function GetH264Pixels(Planes)
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
 	let Yuv_8_8_8;
-	try
+	const Funcs = { Dll: Depth16ToYuv_Dll,Wasm: Depth16ToYuv_Wasm,Js: Depth16ToYuv_Js };
+	for (const FuncName in Funcs)
 	{
-		Yuv_8_8_8 = Depth16ToYuv_Wasm(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
-	}
-	catch (e)
-	{
-		Pop.Debug("Wasm error",e);
-		Yuv_8_8_8 = Depth16ToYuv_Js(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
+		const Func = Funcs[FuncName];
+		try
+		{
+			Yuv_8_8_8 = Func(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
+			break;
+		}
+		catch (e)
+		{
+			Pop.Debug(`${FuncName} error; ${e}`);
+		}
 	}
 
 	const YuvImage = new Pop.Image();
