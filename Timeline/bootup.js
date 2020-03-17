@@ -2,10 +2,11 @@
 
 Pop.Gui.Timeline = class
 {
-	constructor(ParentWindow,Rect,GetTimelineMeta,GetTimelineData)
+	constructor(ParentWindow,Rect,GetTimelineMeta,GetTrackData)
 	{
+		this.GetTimelineMeta = GetTimelineMeta;
+		this.GetTrackData = GetTrackData;
 		this.ImageMap = new Pop.Gui.ImageMap(ParentWindow,Rect);
-		const Meta = GetTimelineMeta();
 		this.ImageMapImage = new Pop.Image();
 		this.UpdatePixels();
 	}
@@ -26,43 +27,81 @@ Pop.Gui.Timeline = class
 
 		//	fetch data in view
 		const DataWidth = 1 + View.TimeLast - View.TimeFirst;
-		let TrackDatas = [];
+		let Tracks = [];
 		for (let t = View.TrackFirst;t <= View.TrackLast;t++)
 		{
 			const TrackData = new Uint8Array(DataWidth);
-			GetTimelineData(View.TimeFirst,View.TimeLast,t,TrackData);
-			TrackDatas.push(TrackData);
+			this.GetTrackData(View.TimeFirst,View.TimeLast,t,TrackData);
+			const Track = {};
+			Track.RenderHeight = 50;
+			Track.Data = TrackData;
+			Track.Rgb = [0.2,0.6,0.6];
+			Tracks.push(Track);
 		}
-		const Pixels = this.MergeTrackDataToPixels(View,TrackDatas);
+		const Pixels = this.MergeTrackDataToPixels(View,Tracks);
 
 		this.ImageMapImage.WritePixels(Pixels.Width,Pixels.Height,Pixels.Data,Pixels.Format);
 		this.ImageMap.SetImage(this.ImageMapImage);
 	}
 
-	MergeTrackDataToPixels(ViewMeta,TrackDatas)
+	MergeTrackDataToPixels(ViewMeta,Tracks)
 	{
+		//	add UI track
+		const ScrubberTrack = this.GetScrubberTrack(ViewMeta);
+		Tracks.unshift(ScrubberTrack);
+
+		//	todo: turn this into rects to make it easier to pad
+		let TotalHeight = 0;
+		let BiggestWidth = 0;
+		function AddHeight(Track)
+		{
+			BiggestWidth = Math.max(BiggestWidth,Track.Data.length);
+			TotalHeight += Track.RenderHeight;
+		}
+		Tracks.forEach(AddHeight);
+
 		//	turn from data to RGB
 		const Pixels = {};
-		Pixels.Width = TrackDatas[0].length;
-		Pixels.Height = TrackDatas.length;
+		Pixels.Width = BiggestWidth;
+		Pixels.Height = TotalHeight;
 		Pixels.Format = 'BGR';
 		Pixels.Channels = 3;
 
 		Pixels.Data = new Uint8Array(Pixels.Channels * Pixels.Width * Pixels.Height);
 
 		//	write RGB
-		for (let t = 0;t < TrackDatas.length;t++)
+		let Row = 0;
+		const RowStride = Pixels.Width * Pixels.Channels;
+		for (let t = 0;t < Tracks.length;t++)
 		{
-			const pi = Pixels.Width * Pixels.Channels * t;
-			const TrackData = TrackDatas[t];
+			const Track = Tracks[t];
+			const TrackData = Track.Data;
+			const pi = RowStride * Row;
+
 			for (let i = 0;i < TrackData.length;i++)
 			{
-				const ti = i * 3;
+				const tpi = i * Pixels.Channels;
 				const Data = TrackData[i];
-				Pixels.Data[pi + ti + 0] = Data;
-				Pixels.Data[pi + ti + 1] = 0;
-				Pixels.Data[pi + ti + 2] = 0;
+				const r = Track.Rgb[0] * Data;
+				const g = Track.Rgb[1] * Data;
+				const b = Track.Rgb[2] * Data;
+				Pixels.Data[pi + tpi + 0] = b;
+				Pixels.Data[pi + tpi + 1] = g;
+				Pixels.Data[pi + tpi + 2] = r;
 			}
+
+			//	insert start end
+			function CopyRow(SrcRow,DstRow)
+			{
+				const Src = SrcRow * RowStride;
+				const Dst = DstRow * RowStride;
+				Pixels.Data.copyWithin(Dst,Src,Src+RowStride);
+			}
+			for (let r = 1;r < Track.RenderHeight;r++)
+			{
+				CopyRow(Row,Row + r);
+			}
+			Row += Track.RenderHeight;
 		}
 		Pop.Debug("Pixels.Data",Pixels.Data);
 		//	draw UI on top
@@ -70,8 +109,30 @@ Pop.Gui.Timeline = class
 		return Pixels;
 	}
 
-	GetScrubberTrackData(ViewMeta)
+	GetScrubberTrack(View)
 	{
+		const DataWidth = 1 + View.TimeLast - View.TimeFirst;
+		const TrackData = new Uint8Array(DataWidth);
+		const NotchFrequency = 10;
+
+		for (let p = 0;p < DataWidth;p++)
+		{
+			const t = View.TimeFirst + p;
+			const Notch = (t % NotchFrequency) == 0;
+			const Alt = (t & 1) != 0;
+			let Value = 0;
+			if (Alt)
+				Value = 50;
+			if (Notch)
+				Value = 200;
+			TrackData[p] = Value;
+		}
+
+		const Track = {};
+		Track.RenderHeight = 10;
+		Track.Data = TrackData;
+		Track.Rgb = [1,1,1];
+		return Track;
 	}
 
 	WriteUIToPixels(Pixels)
@@ -123,8 +184,9 @@ function GetTimelineMeta()
 	return Meta;
 }
 
-function GetTimelineData(TimeFirst,TimeLast,TrackIndex,TrackData)
+function GetTrackData(TimeFirst,TimeLast,TrackIndex,TrackData)
 {
+	Pop.Debug(`TimeFirst ${TimeFirst} TimeLast ${TimeLast} TrackData.length ${TrackData.length}`);
 	for (let i = TimeFirst;i <= TimeLast;i++)
 		TrackData[i] = Math.floor(Math.random() * 255);
 	TrackData[0] = 255;
@@ -132,8 +194,8 @@ function GetTimelineData(TimeFirst,TimeLast,TrackIndex,TrackData)
 }
 
 
-const TimelineRect = AllocControlRect(0);
-const Timeline = new Pop.Gui.Timeline(Window,TimelineRect,GetTimelineMeta,GetTimelineData);
+const TimelineRect = AllocControlRect(100);
+const Timeline = new Pop.Gui.Timeline(Window,TimelineRect,GetTimelineMeta,GetTrackData);
 
 const ImageMapRect = AllocControlRect(0);
 const ImageMap = new Pop.Gui.ImageMap(Window,ImageMapRect);
