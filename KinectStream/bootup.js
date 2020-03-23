@@ -35,7 +35,7 @@ Params.Compression = 3;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
-Params.WebsocketPort = 80;
+Params.WebsocketPort = 8080;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -638,10 +638,12 @@ function TCameraWindow(CameraName)
 	{
 		while (true)
 		{
+			Pop.Debug("Wait for next decoder packet");
+
 			const Frame = await this.Decoder.WaitForNextFrame();
 			this.DecodedTextures = Frame.Planes;
 			this.DecodedH264Counter.Add();
-			//Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
+			Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
 		}
 	}
 
@@ -657,8 +659,17 @@ function TCameraWindow(CameraName)
 				continue;
 			}
 
-			//Pop.Debug("Wait for next packet");
-			const Packet = await this.Encoder.WaitForNextPacket();
+			Pop.Debug("Wait for next encoder packet");
+			let Packet;
+			try
+			{
+				Packet = await this.Encoder.WaitForNextPacket();
+			}
+			catch(e)
+			{
+				Pop.Debug(`Exception waiting for packet ${e} - race condition in engine?`);
+				continue;
+			}
 			Pop.Debug("Got packet x",Packet.Data.length);
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
 			this.EncodedH264Counter.Add();
@@ -672,6 +683,7 @@ function TCameraWindow(CameraName)
 			QueueFrame(Packet.Data,Meta,IsKeyframe);
 
 			//	queue for re-decode for testing
+			Pop.Debug("Decode h264 packet...");
 			this.Decoder.Decode(Packet.Data);
 		}
 	}
