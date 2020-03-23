@@ -366,7 +366,7 @@ function Depth16ToYuv_Wasm(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax
 	//return Depth8Plane;
 }
 
-Pop.Include('../PopEngineCommon/PopDll.js');
+//Pop.Include('../PopEngineCommon/PopDll.js');
 let Depth16ToYuvDll = null;
 let Depth16ToYuvDll_Functor = null;
 function GetDepth16ToYuvDllFunction()
@@ -374,7 +374,7 @@ function GetDepth16ToYuvDllFunction()
 	if (Depth16ToYuvDll_Functor)
 		return Depth16ToYuvDll_Functor;
 
-
+/*
 	Depth16ToYuvDll = new Pop.Dll.Library('PopDepthToYuv/Depth16ToYuv.dll');
 	//const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int Width, int Height, int DepthMin, int DepthMax);";
 	const FunctionDeclaration = "void Depth16ToYuv(uint16_t* Depth16Plane, uint8_t* Yuv8_8_8Plane, int32_t Width, int32_t Height, int32_t DepthMin, int32_t DepthMax);";
@@ -382,6 +382,8 @@ function GetDepth16ToYuvDllFunction()
 	//	gr: this is throwing, but no error!?
 	Depth16ToYuvDll_Functor = Depth16ToYuvDll.GetFunctionFromDeclaration(FunctionDeclaration);
 	return Depth16ToYuvDll_Functor;
+ */
+	throw "Not supported";
 }
 
 function Depth16ToYuv_Dll(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
@@ -515,7 +517,8 @@ function GetH264Pixels(Planes)
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
 	let Yuv_8_8_8;
-	const Funcs = { Dll: Depth16ToYuv_Dll,Wasm: Depth16ToYuv_Wasm,Js: Depth16ToYuv_Js };
+	//const Funcs = { Dll: Depth16ToYuv_Dll,Wasm: Depth16ToYuv_Wasm,Js: Depth16ToYuv_Js };
+	const Funcs = { Js: Depth16ToYuv_Js };
 	for (const FuncName in Funcs)
 	{
 		const Func = Funcs[FuncName];
