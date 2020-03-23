@@ -120,7 +120,9 @@ float2 GetChromaUuv(float2 uv)
 	float RowIndex = uv.y * ChromaRows;
 	int RowN = int(floor(RowIndex)) % 2;
 
-	float Columns[2] = {0,1};
+	float Columns[2];
+	Columns[0] = 0;
+	Columns[1] = 1;
 	
 	RectMin.x = 0.50 * (Columns[RowN]+0);
 	RectMax.x = 0.50 * (Columns[RowN]+1);
