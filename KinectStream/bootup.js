@@ -761,7 +761,14 @@ async function FindCamerasLoop()
 	{
 		function IsKinectDevice(Device)
 		{
-			return Device.Serial.includes('KinectAzure');
+			if ( Device.Serial.includes('KinectAzure') )
+				return true;
+
+			if ( Device.Serial.startsWith('Freenect') )
+				if ( Device.Serial.endsWith('_Depth') )
+					return true;
+			
+			return false;
 		}
 
 		try
