@@ -36,6 +36,8 @@ Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
+Params.UdpHost = '127.0.0.1';
+Params.UdpPort = 7070;
 
 const ParamsWindow = new Pop.ParamsWindow(Params);
 ParamsWindow.AddParam('DepthMin',0,65500);
@@ -46,6 +48,8 @@ ParamsWindow.AddParam('DepthSquared');
 ParamsWindow.AddParam('PingPongLuma');
 ParamsWindow.AddParam('PingPongLuma');
 ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
+ParamsWindow.AddParam('UdpHost');
+ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
 
 
 let FrameQueue = [];
@@ -156,6 +160,34 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 					}
 				}
 				Peers.forEach(SendToPeer);
+			}
+			await SendFrameFunc(Send);
+		}
+	}
+}
+
+
+async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
+{
+	let HostIndex = null;
+	
+	while (true)
+	{
+		HostIndex = (HostIndex === null) ? 0 : HostIndex++;
+		HostIndex = HostIndex % Hosts.length;
+		const Host = Hosts[HostIndex];
+		const Socket = new Pop.Socket.UdpClient(Host[0],Host[1]);
+		Pop.Debug("Opened UDP client", JSON.stringify(Socket.GetAddress()));
+		await Socket.WaitForConnect();
+		
+		while (true)
+		{
+			const Peer = Socket.GetPeers()[0];
+			OnNewPeer(Peer,Socket);
+			
+			function Send(Message)
+			{
+				Socket.Send(Peer,Message);
 			}
 			await SendFrameFunc(Send);
 		}
@@ -684,7 +716,8 @@ function TCameraWindow(CameraName)
 
 			//	queue for re-decode for testing
 			Pop.Debug("Decode h264 packet...");
-			this.Decoder.Decode(Packet.Data);
+			if ( this.Decoder )
+				this.Decoder.Decode(Packet.Data);
 		}
 	}
 
@@ -808,5 +841,8 @@ async function FindCamerasLoop()
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
-const Ports = [Params.WebsocketPort];
-WebsocketLoop(Ports,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+const WebsocketPorts = [Params.WebsocketPort];
+//WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+
+const UdpHosts = [ [Params.UdpHost,Params.UdpPort] ];
+UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
