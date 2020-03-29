@@ -11,7 +11,7 @@ Label.SetValue('Drag an app folder to this window to boot');
 async function RunNextApp(Filename)
 {
 	//	relaunch this app with a new path
-	let ExeName = Pop.GetExeDirectory() + 'PopEngine';
+	let ExeName = Pop.GetExeDirectory() + 'PopEngine.app/Contents/MacOS/PopEngine';
 	let Arguments = [Filename];
 	const Process = new Pop.ShellExecute(ExeName,Arguments);
 	const ExitCode = await Process.WaitForExit();
