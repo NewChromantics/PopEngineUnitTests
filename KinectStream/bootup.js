@@ -69,11 +69,14 @@ const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.Compression = 3;
+Params.Compression = 5;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
+Params.UdpHost = ' 109.149.131.125';
+Params.UdpPort = 1234;
+Params.EnableDecoding = true;
 
 let ParamsWindow;
 try
@@ -87,6 +90,9 @@ try
 	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
+    ParamsWindow.AddParam('UdpHost');
+    ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
+    ParamsWindow.AddParam('EnableDecoding');
 }
 catch(e)
 {
@@ -207,6 +213,68 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 				Peers.forEach(SendToPeer);
 			}
 			await SendFrameFunc(Send);
+		}
+	}
+}
+
+
+async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
+{
+	let HostIndex = null;
+	
+	while (true)
+	{
+		async function Iteration(Host)
+		{
+			const Socket = new Pop.Socket.UdpClient(Host[0],Host[1]);
+			Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
+
+			await Socket.WaitForConnect();
+			{
+				const Peer = Socket.GetPeers()[0];
+				OnNewPeer(Peer,Socket);
+			}
+			while (true)
+			{
+				const Peers = Socket.GetPeers();
+				if (Peers.length == 0)
+					throw "Whilst connected, peers have gone (bug in engine, socket should have disconnected)";
+				
+				function Send(Message)
+				{
+					//	todo: convert to an NALU meta packet, or fix client to detect a JSON string
+					if (typeof Message == 'string')
+						return;
+
+					function SendToPeer(Peer)
+					{
+						try
+						{
+							Socket.Send(Peer,Message);
+						}
+						catch (e)
+						{
+							Pop.Debug(`SendFrameToPeer(${Peer}) error; ${e}`);
+						}
+					}
+					Peers.forEach(SendToPeer);
+				}
+				await SendFrameFunc(Send);
+			}
+		}
+
+		try
+		{
+			HostIndex = (HostIndex === null) ? 0 : HostIndex++;
+			HostIndex = HostIndex % Hosts.length;
+			const Host = Hosts[HostIndex];
+			const IterationFinished = await Iteration(Host);
+			return IterationFinished;
+		}
+		catch (e)
+		{
+			Pop.Debug(`UDP socket error ${e}`);
+			await Pop.Yield(1000);
 		}
 	}
 }
@@ -553,8 +621,9 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,U
 function GetH264Pixels(Planes)
 {
 	//	find the depth plane
-	function IsDepthPlane(Image)
+	function IsDepthPlane(Image,Index)
 	{
+		Pop.Debug(`Depth plane ${Index} is ${Image.GetFormat()}`);
 		return Image.GetFormat() == 'Depth16mm';
 	}
 	Planes = Planes.filter(IsDepthPlane);
@@ -738,7 +807,12 @@ function TCameraWindow(CameraName)
 
 			//	queue for re-decode for testing
 			Pop.Debug("Decode h264 packet...");
-			this.Decoder.Decode(Packet.Data);
+			if (this.Decoder)
+			{
+				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see 
+				if (IsKeyframe || Params.EnableDecoding)
+					this.Decoder.Decode(Packet.Data);
+			}
 		}
 	}
 
@@ -853,8 +927,11 @@ async function FindCamerasLoop()
 			if ( Device.Serial.includes('KinectAzure') )
 				return true;
 
-			if ( Device.Serial.startsWith('Freenect') )
-				if ( Device.Serial.endsWith('_Depth') )
+			if (Device.Serial.startsWith('Freenect'))
+				if (Device.Serial.endsWith('_Depth'))
+					return true;
+			if (Device.Serial.startsWith('Kinect2'))
+				if (Device.Serial.endsWith('_Depth'))
 					return true;
 			
 			return false;
@@ -884,5 +961,8 @@ Pop.Debug("Hello");
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
-const Ports = [Params.WebsocketPort];
-WebsocketLoop(Ports,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+const WebsocketPorts = [Params.WebsocketPort];
+WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+
+const UdpHosts = [ [Params.UdpHost,Params.UdpPort] ];
+UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
