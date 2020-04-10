@@ -1,10 +1,44 @@
+//	ios specific debug for now
+const Ios = {};
+
+Ios.Window = new Pop.Gui.Window("Any name");
+Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"TheTextBox");
+Ios.DebugLabel.SetValue('Hello from javascript!');
+Ios.DebugLogs = [];
+Ios.Pop_Debug = Pop.Debug;
+Ios.Debug = function()
+{
+	Ios.Pop_Debug(...arguments);
+	
+	const Log = Array.from(arguments).join(',');
+	Ios.DebugLogs.splice(0,0,Log);
+	const LogString = Ios.DebugLogs.slice(0,40).join('\n');
+	Ios.DebugLabel.SetValue(LogString);
+}
+
+//	replace Pop.Debug
+Pop.Debug = Ios.Debug;
+
+
+
+
 Pop.Include = function (Filename)
 {
 	const Source = Pop.LoadFileAsString(Filename);
 	return Pop.CompileAndRun(Source,Filename);
 }
 
-const EngineDebug = new Pop.Engine.StatsWindow();
+
+let EngineDebug;
+try
+{
+	EngineDebug = new Pop.Engine.StatsWindow();
+}
+catch(e)
+{
+	Pop.Debug('Pop.Engine.StatsWindow:',e);
+}
+
 
 Pop.Include('../PopEngineCommon/PopApi.js');
 Pop.Include('../PopEngineCommon/PopMath.js');	//	needed by ParamsWindow
@@ -37,15 +71,26 @@ Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
 
-const ParamsWindow = new Pop.ParamsWindow(Params);
-ParamsWindow.AddParam('DepthMin',0,65500);
-ParamsWindow.AddParam('DepthMax',0,65500);
-ParamsWindow.AddParam('Compression',0,9,Math.floor);
-ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
-ParamsWindow.AddParam('DepthSquared');
-ParamsWindow.AddParam('PingPongLuma');
-ParamsWindow.AddParam('PingPongLuma');
-ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
+let ParamsWindow;
+try
+{
+	ParamsWindow = new Pop.ParamsWindow(Params);
+	ParamsWindow.AddParam('DepthMin',0,65500);
+	ParamsWindow.AddParam('DepthMax',0,65500);
+	ParamsWindow.AddParam('Compression',0,9,Math.floor);
+	ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
+	ParamsWindow.AddParam('DepthSquared');
+	ParamsWindow.AddParam('PingPongLuma');
+	ParamsWindow.AddParam('PingPongLuma');
+	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
+}
+catch(e)
+{
+	Pop.Debug("ParamsWindow error",e);
+	//	make stub
+	ParamsWindow = {};
+	ParamsWindow.AddParam = function(){};
+}
 
 
 let FrameQueue = [];
@@ -509,6 +554,11 @@ function GetH264Pixels(Planes)
 		return Image.GetFormat() == 'Depth16mm';
 	}
 	Planes = Planes.filter(IsDepthPlane);
+	if ( !Planes.length )
+	{
+		Pop.Debug("No depth plane", Planes.map(p=>p.GetFormat()).join(',') );
+		return;
+	}
 	const DepthPlane = Planes[0];
 	const DepthPixels = DepthPlane.GetPixelBuffer();
 	const DepthWidth = DepthPlane.GetWidth();
@@ -725,12 +775,19 @@ function TCameraWindow(CameraName)
 		}
 	}
 
-	this.Window = new Pop.Opengl.Window(CameraName);
-	this.Window.OnRender = this.OnRender.bind(this);
-	this.Window.OnMouseMove = function () { };
-	this.Window.OnMouseDown = function () { };
-	this.Window.OnMouseUp = function () { };
-
+	try
+	{
+		this.Window = new Pop.Opengl.Window(CameraName);
+		this.Window.OnRender = this.OnRender.bind(this);
+		this.Window.OnMouseMove = function () { };
+		this.Window.OnMouseDown = function () { };
+		this.Window.OnMouseUp = function () { };
+	}
+	catch(e)
+	{
+		Pop.Debug(e);
+	}
+	
 	const LatestOnly = true;
 	const Format = "Depth16";
 	//const Format = "Yuv_8_88_Ntsc_Depth16";
@@ -776,6 +833,9 @@ async function FindCamerasLoop()
 	{
 		function IsKinectDevice(Device)
 		{
+			if ( Device.Serial.includes('Back') )
+				return true;
+			
 			if ( Device.Serial.includes('KinectAzure') )
 				return true;
 
@@ -793,7 +853,6 @@ async function FindCamerasLoop()
 			Devices = Devices.Devices.filter(IsKinectDevice);
 
 			Devices.forEach(CreateCamera);
-			await Pop.Yield(1);
 
 			//	todo: EnumDevices needs to change to "OnDevicesChanged"
 			break;
@@ -802,8 +861,11 @@ async function FindCamerasLoop()
 		{
 			Pop.Debug("FindCamerasLoop error: " + e);
 		}
+		await Pop.Yield(10*1000);
 	}
 }
+
+Pop.Debug("Hello");
 
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
