@@ -3,10 +3,17 @@ const Ios = {};
 
 Pop.Debug(`Platform is ${Pop.GetPlatform()}`);
 
+let OnSocketReady = function(Name,Socket)
+{
+	const Address = Socket ? Socket.GetAddress().map( a => a.Address ).join(',') : "";
+	Pop.Debug(`Socket Ready: ${Name}@ ${Address}`);
+}
+
 if ( Pop.GetPlatform() == "Ios" )
 {
 	Ios.Window = new Pop.Gui.Window("Any name");
-	Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"TheTextBox");
+	Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"Debug");
+	Ios.ServerLabel = new Pop.Gui.Label(Ios.Window,"Servers");
 	Ios.DebugLabel.SetValue('Hello from javascript!');
 	Ios.DebugLogs = [];
 	Ios.Pop_Debug = Pop.Debug;
@@ -22,6 +29,17 @@ if ( Pop.GetPlatform() == "Ios" )
 
 	//	replace Pop.Debug
 	Pop.Debug = Ios.Debug;
+	
+	let SocketDebugs = [];
+	OnSocketReady = function(Name,Socket)
+	{
+		const Address = Socket ? Socket.GetAddress().map( a => a.Address ).join(',') : "";
+		const Debug = `Socket Ready: ${Name}@ ${Address}`;
+		Pop.Debug(Debug);
+		SocketDebugs.push(Debug);
+		Ios.ServerLabel.SetValue(SocketDebugs.join('\n'));
+	}
+
 }
 
 
@@ -74,7 +92,7 @@ Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
-Params.UdpHost = ' 109.149.131.125';
+Params.UdpHost = '192.168.0.11';
 Params.UdpPort = 1234;
 Params.EnableDecoding = true;
 
@@ -178,6 +196,7 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 		PortIndex = PortIndex % Ports.length;
 		const Port = Ports[PortIndex]
 		const Server = new Pop.Websocket.Server(Port);
+		OnSocketReady("WebsocketServer",Server);
 		//await Server.WaitForConnect();
 		while (true)
 		{
@@ -227,8 +246,10 @@ async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 		async function Iteration(Host)
 		{
 			const Socket = new Pop.Socket.UdpClient(Host[0],Host[1]);
-			Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
-
+			//Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
+			OnSocketReady("UdpClient",Socket);
+			OnSocketReady(`UdpClient connecting to ${Host[0]}:${Host[1]}`,null);
+			
 			await Socket.WaitForConnect();
 			{
 				const Peer = Socket.GetPeers()[0];
@@ -617,8 +638,21 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,U
 
 
 
+
+
+function GetYuv_8_8_8(Planes)
+{
+	if ( Planes[0].GetFormat().startsWith('Yuv_8_8_8') )
+		return Planes[0];
+
+	let Luma = Planes[0];
+	Luma.SetFormat('Yuv_8_8_8_Ntsc');
+	return Luma;
+}
+
+
 //	convert a set of textures to YUV_8_8_8 to encode
-function GetH264Pixels(Planes)
+function GetH264Pixels(OrigPlanes)
 {
 	//	find the depth plane
 	function IsDepthPlane(Image,Index)
@@ -626,11 +660,13 @@ function GetH264Pixels(Planes)
 		Pop.Debug(`Depth plane ${Index} is ${Image.GetFormat()}`);
 		return Image.GetFormat() == 'Depth16mm';
 	}
-	Planes = Planes.filter(IsDepthPlane);
+	let Planes = OrigPlanes.filter(IsDepthPlane);
+
 	if ( !Planes.length )
 	{
 		Pop.Debug("No depth plane", Planes.map(p=>p.GetFormat()).join(',') );
-		return;
+		const Img = GetYuv_8_8_8(OrigPlanes);
+		return Img;
 	}
 	const DepthPlane = Planes[0];
 	const DepthPixels = DepthPlane.GetPixelBuffer();
