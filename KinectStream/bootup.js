@@ -766,8 +766,12 @@ function TCameraWindow(CameraName)
 				}
 
 				const EncodedTexture = GetH264Pixels(this.VideoTextures);
-				this.EncodedTextures = [EncodedTexture];
-				this.Encoder.Encode(EncodedTexture,Time);				
+				if ( EncodedTexture )
+				{
+					this.EncodedTextures = [EncodedTexture];
+					this.Encoder.Encode(EncodedTexture,Time);
+				}
+				
 			}
 			catch (e)
 			{
