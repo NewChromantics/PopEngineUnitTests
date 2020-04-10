@@ -593,13 +593,13 @@ function RenderImage(RenderTarget,Textures,Rect)
 {
 	if (!Textures)
 	{
-		RenderTarget.ClearColour(255,0,0);
+		//RenderTarget.ClearColour(255,0,0);
 		return;
 	}
 
 	if (!Textures.length)
 	{
-		RenderTarget.ClearColour(0,0,255);
+		//RenderTarget.ClearColour(0,0,255);
 		return;
 	}
 
