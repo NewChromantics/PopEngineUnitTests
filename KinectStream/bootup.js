@@ -8,17 +8,17 @@ if ( Pop.GetPlatform() == "Ios" )
 	Ios.Window = new Pop.Gui.Window("Any name");
 	Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"TheTextBox");
 	Ios.DebugLabel.SetValue('Hello from javascript!');
-Ios.DebugLogs = [];
-Ios.Pop_Debug = Pop.Debug;
-Ios.Debug = function()
-{
-	Ios.Pop_Debug(...arguments);
-	
-	const Log = Array.from(arguments).join(',');
-	Ios.DebugLogs.splice(0,0,Log);
-	const LogString = Ios.DebugLogs.slice(0,40).join('\n');
-	Ios.DebugLabel.SetValue(LogString);
-}
+	Ios.DebugLogs = [];
+	Ios.Pop_Debug = Pop.Debug;
+	Ios.Debug = function()
+	{
+		Ios.Pop_Debug(...arguments);
+		
+		const Log = Array.from(arguments).join(',');
+		Ios.DebugLogs.splice(0,0,Log);
+		const LogString = Ios.DebugLogs.slice(0,40).join('\n');
+		Ios.DebugLabel.SetValue(LogString);
+	}
 
 	//	replace Pop.Debug
 	Pop.Debug = Ios.Debug;
@@ -749,6 +749,9 @@ function TCameraWindow(CameraName)
 			try
 			{
 				const NewFrame = await this.Source.WaitForNextFrame();
+				
+				//	javascript core isn't freeing these
+				this.VideoTextures.forEach( t => t.Clear() );
 				this.VideoTextures = NewFrame.Planes;
 				this.CameraFrameCounter.Add();
 
