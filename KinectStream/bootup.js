@@ -1,9 +1,13 @@
 //	ios specific debug for now
 const Ios = {};
 
-Ios.Window = new Pop.Gui.Window("Any name");
-Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"TheTextBox");
-Ios.DebugLabel.SetValue('Hello from javascript!');
+Pop.Debug(`Platform is ${Pop.GetPlatform()}`);
+
+if ( Pop.GetPlatform() == "Ios" )
+{
+	Ios.Window = new Pop.Gui.Window("Any name");
+	Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"TheTextBox");
+	Ios.DebugLabel.SetValue('Hello from javascript!');
 Ios.DebugLogs = [];
 Ios.Pop_Debug = Pop.Debug;
 Ios.Debug = function()
@@ -16,9 +20,9 @@ Ios.Debug = function()
 	Ios.DebugLabel.SetValue(LogString);
 }
 
-//	replace Pop.Debug
-Pop.Debug = Ios.Debug;
-
+	//	replace Pop.Debug
+	Pop.Debug = Ios.Debug;
+}
 
 
 
