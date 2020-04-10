@@ -841,9 +841,12 @@ async function FindCamerasLoop()
 	{
 		function IsKinectDevice(Device)
 		{
+			//	testing
 			if ( Device.Serial.includes('Back') )
 				return true;
-			
+			if ( Device.Serial.includes('FaceTime') )
+				return true;
+
 			if ( Device.Serial.includes('KinectAzure') )
 				return true;
 
