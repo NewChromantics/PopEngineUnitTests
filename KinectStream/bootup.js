@@ -11,18 +11,21 @@ let OnSocketReady = function(Name,Socket)
 
 if ( Pop.GetPlatform() == "Ios" )
 {
-	Ios.Window = new Pop.Gui.Window("Any name");
-	Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"Debug");
-	Ios.ServerLabel = new Pop.Gui.Label(Ios.Window,"Servers");
-	Ios.DebugLabel.SetValue('Hello from javascript!');
-	Ios.DebugLogs = [];
-	Ios.Pop_Debug = Pop.Debug;
-	Ios.Debug = function()
+	try
 	{
-		Ios.Pop_Debug(...arguments);
-		
-		const Log = Array.from(arguments).join(',');
-		Ios.DebugLogs.splice(0,0,Log);
+		Ios.Window = new Pop.Gui.Window("Any name");
+		Ios.DebugLabel = new Pop.Gui.Label(Ios.Window,"Debug");
+		Ios.ServerLabel = new Pop.Gui.Label(Ios.Window,"Servers");
+		Ios.StatsLabel = new Pop.Gui.Label(Ios.Window,"Stats");
+		Ios.DebugLabel.SetValue('Hello from javascript!');
+		Ios.DebugLogs = [];
+		Ios.Pop_Debug = Pop.Debug;
+		Ios.Debug = function()
+		{
+			//Ios.Pop_Debug(...arguments);
+			
+			const Log = Array.from(arguments).join(',');
+			Ios.DebugLogs.splice(0,0,Log);
 		const LogString = Ios.DebugLogs.slice(0,40).join('\n');
 		Ios.DebugLabel.SetValue(LogString);
 	}
@@ -36,10 +39,14 @@ if ( Pop.GetPlatform() == "Ios" )
 		const Address = Socket ? Socket.GetAddress().map( a => a.Address ).join(',') : "";
 		const Debug = `Socket Ready: ${Name}@ ${Address}`;
 		Pop.Debug(Debug);
-		SocketDebugs.push(Debug);
-		Ios.ServerLabel.SetValue(SocketDebugs.join('\n'));
+			SocketDebugs.push(Debug);
+			Ios.ServerLabel.SetValue(SocketDebugs.join('\n'));
+		}
 	}
-
+	catch(e)
+	{
+		Pop.Debug(`IOS error: ${e}`);
+	}
 }
 
 
@@ -54,7 +61,7 @@ Pop.Include = function (Filename)
 let EngineDebug;
 try
 {
-	EngineDebug = new Pop.Engine.StatsWindow();
+	EngineDebug = new Pop.Engine.StatsWindow( Ios ? Ios.StatsLabel : undefined );
 }
 catch(e)
 {
@@ -657,14 +664,14 @@ function GetH264Pixels(OrigPlanes)
 	//	find the depth plane
 	function IsDepthPlane(Image,Index)
 	{
-		Pop.Debug(`Depth plane ${Index} is ${Image.GetFormat()}`);
+		//Pop.Debug(`Depth plane ${Index} is ${Image.GetFormat()}`);
 		return Image.GetFormat() == 'Depth16mm';
 	}
 	let Planes = OrigPlanes.filter(IsDepthPlane);
 
 	if ( !Planes.length )
 	{
-		Pop.Debug("No depth plane", Planes.map(p=>p.GetFormat()).join(',') );
+		//Pop.Debug("No depth plane", Planes.map(p=>p.GetFormat()).join(',') );
 		const Img = GetYuv_8_8_8(OrigPlanes);
 		return Img;
 	}
