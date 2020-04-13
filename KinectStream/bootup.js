@@ -100,8 +100,11 @@ Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
 Params.UdpHost = '192.168.0.11';
+Params.UdpHost = '127.0.0.1';
 Params.UdpPort = 1234;
-Params.EnableDecoding = true;
+Params.TcpHost = '127.0.0.1';
+Params.TcpPort = 1235;
+Params.EnableDecoding = false;
 
 let ParamsWindow;
 try
@@ -308,6 +311,67 @@ async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 }
 
 
+async function TcpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
+{
+	let HostIndex = null;
+
+	while (true)
+	{
+		async function Iteration(Host)
+		{
+			const Socket = new Pop.Socket.TcpClient(Host[0],Host[1]);
+			//Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
+			OnSocketReady(`TcpClient connecting to ${Host[0]}:${Host[1]}`,null);
+
+			await Socket.WaitForConnect();
+			{
+				const Peer = Socket.GetPeers()[0];
+				OnNewPeer(Peer,Socket);
+			}
+			while (true)
+			{
+				const Peers = Socket.GetPeers();
+				if (Peers.length == 0)
+					throw "Whilst connected, peers have gone (bug in engine, socket should have disconnected)";
+
+				function Send(Message)
+				{
+					//	todo: convert to an NALU meta packet, or fix client to detect a JSON string
+					if (typeof Message == 'string')
+						return;
+
+					function SendToPeer(Peer)
+					{
+						try
+						{
+							Socket.Send(Peer,Message);
+						}
+						catch (e)
+						{
+							Pop.Debug(`SendFrameToPeer(${Peer}) error; ${e}`);
+						}
+					}
+					Peers.forEach(SendToPeer);
+				}
+				await SendFrameFunc(Send);
+			}
+		}
+
+		try
+		{
+			HostIndex = (HostIndex === null) ? 0 : HostIndex++;
+			HostIndex = HostIndex % Hosts.length;
+			const Host = Hosts[HostIndex];
+			const IterationFinished = await Iteration(Host);
+			return IterationFinished;
+		}
+		catch (e)
+		{
+			Pop.Debug(`TCP socket error ${e}`);
+			await Pop.Yield(1000);
+		}
+	}
+}
 
 function GetUvRanges(RangeCount)
 {
@@ -849,12 +913,14 @@ function TCameraWindow(CameraName)
 			QueueFrame(Packet.Data,Meta,IsKeyframe);
 
 			//	queue for re-decode for testing
-			Pop.Debug("Decode h264 packet...");
 			if (this.Decoder)
 			{
 				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see 
 				if (IsKeyframe || Params.EnableDecoding)
+				{
+					Pop.Debug("Decode h264 packet...");
 					this.Decoder.Decode(Packet.Data);
+				}
 			}
 		}
 	}
@@ -1005,7 +1071,12 @@ Pop.Debug("Hello");
 FindCamerasLoop().catch(Pop.Debug);
 
 const WebsocketPorts = [Params.WebsocketPort];
-WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+//WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
-const UdpHosts = [ [Params.UdpHost,Params.UdpPort] ];
+const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+
+//	gr: wiuthout UDP this doesnt find the kinect!?
+//	gr: or if the TCP is running, it does. something blocks in TCP that should be async
+const TcpHosts = [[Params.TcpHost,Params.TcpPort]];
+//TcpClientSocketLoop(TcpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
