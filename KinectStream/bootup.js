@@ -175,8 +175,11 @@ function PopNextFrameQueueFrame()
 	const SendFrameIndex = 0;
 
 	//	delete frames before
-	FrameQueue.splice(0,SendFrameIndex);
-	Pop.Debug(`Dropped ${SendFrameIndex} queued frames`);
+	if ( SendFrameIndex > 0 )
+	{
+		FrameQueue.splice(0,SendFrameIndex);
+		Pop.Debug(`Dropped ${SendFrameIndex} queued frames`);
+	}
 	const Frame = FrameQueue.shift();
 	return Frame;
 }
@@ -889,7 +892,7 @@ function TCameraWindow(CameraName)
 				continue;
 			}
 
-			Pop.Debug("Wait for next encoder packet");
+			//Pop.Debug("Wait for next encoder packet");
 			let Packet;
 			try
 			{
@@ -900,7 +903,7 @@ function TCameraWindow(CameraName)
 				Pop.Debug(`Exception waiting for packet ${e} - race condition in engine?`);
 				continue;
 			}
-			Pop.Debug("Got packet x",Packet.Data.length);
+			//Pop.Debug(`Got packet x${Packet.Data.length}`,Packet.Data.slice(0,10));
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
 			this.EncodedH264Counter.Add();
 
@@ -909,7 +912,7 @@ function TCameraWindow(CameraName)
 			const IsKeyframe = Pop.H264.IsKeyframe(Packet.Data);
 
 			//	send out packet
-			Pop.Debug("H264 packet is keyframe;",IsKeyframe,"x" + Packet.Data.length);
+			//Pop.Debug("H264 packet is keyframe;",IsKeyframe,"x" + Packet.Data.length);
 			QueueFrame(Packet.Data,Meta,IsKeyframe);
 
 			//	queue for re-decode for testing
@@ -918,7 +921,7 @@ function TCameraWindow(CameraName)
 				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see 
 				if (IsKeyframe || Params.EnableDecoding)
 				{
-					Pop.Debug("Decode h264 packet...");
+					//Pop.Debug("Decode h264 packet...");
 					this.Decoder.Decode(Packet.Data);
 				}
 			}
