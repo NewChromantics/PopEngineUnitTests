@@ -740,14 +740,31 @@ function GetYuv_8_8_8(Planes)
 		return Planes[0];
 
 	let Luma = Planes[0];
-	Luma.SetFormat('Yuv_8_8_8_Ntsc');
+	//	much faster for testing
+	//Luma.SetFormat('Yuv_8_8_8_Ntsc');
+	Luma.SetFormat('Greyscale');
 	return Luma;
 }
 
+function GetTinyTestH264()
+{
+	let LumaWidth = 50;
+	let LumaHeight = 50;
+	const ChromaWidth = Math.floor(LumaWidth / 2);
+	const ChromaHeight = Math.floor(LumaHeight / 2);
+	const ChromaSize = ChromaWidth * ChromaHeight;
+	const YuvSize = (LumaWidth * LumaHeight) + ChromaSize + ChromaSize;
+	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
+	const YuvImage = new Pop.Image();
+	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	return YuvImage;
+}
 
 //	convert a set of textures to YUV_8_8_8 to encode
 function GetH264Pixels(OrigPlanes)
 {
+	//return GetTinyTestH264();
+	
 	//	find the depth plane
 	function IsDepthPlane(Image,Index)
 	{
