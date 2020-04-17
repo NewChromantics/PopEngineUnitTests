@@ -132,7 +132,23 @@ catch(e)
 
 
 let FrameQueue = [];
-let CriticalFrames = [];	//	save SPS/PPS frames for new peers
+//	save critical packets for new peers
+let LastSpsPackets = [];
+let LastPpsPackets = [];
+let LastKeyFramePackets = [];
+function GetCriticalFrames()
+{
+	if ( !LastSpsPackets.length )
+		return [];
+	
+	//	clip arrays on use
+	LastSpsPackets = LastSpsPackets.slice(-1);
+	LastPpsPackets = LastPpsPackets.slice(-1);
+	LastKeyFramePackets = LastKeyFramePackets.slice(-1);
+
+	const Critical = [ LastSpsPackets[0], LastPpsPackets[0], LastKeyFramePackets[0] ];
+	return Critical;
+}
 
 function OnNewPeer(Peer,Server)
 {
@@ -141,6 +157,7 @@ function OnNewPeer(Peer,Server)
 		Server.Send(Peer,JSON.stringify(Frame.Meta));
 		Server.Send(Peer,Frame.Data);
 	}
+	const CriticalFrames = GetCriticalFrames();
 	Pop.Debug(`Sending new peer(${Peer}) ${CriticalFrames.length} frames`);
 	CriticalFrames.forEach(SendFrame);
 }
@@ -153,8 +170,11 @@ function QueueFrame(Data,Meta,Keyframe)
 	FramePacket.Keyframe = Keyframe;
 	FrameQueue.push(FramePacket);
 
-	if (Pop.H264.IsKeyframe(Data))
-		CriticalFrames.push(FramePacket);
+	const Type = Pop.H264.GetNaluType(Data);
+	//Pop.Debug(`QueueFrame Type=${Type} Keyframe=${Keyframe}`);
+	if ( Type == Pop.H264.SPS )	LastSpsPackets.push(FramePacket);
+	if ( Type == Pop.H264.PPS )	LastPpsPackets.push(FramePacket);
+	if ( Type == Pop.H264.Slice_CodedIDRPicture )	LastKeyFramePackets.push(FramePacket);
 }
 
 function PopNextFrameQueueFrame()
