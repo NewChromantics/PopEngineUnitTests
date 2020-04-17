@@ -94,7 +94,7 @@ const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.Compression = 5;
+Params.Compression = 1;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
@@ -105,6 +105,7 @@ Params.UdpPort = 1234;
 Params.TcpHost = '127.0.0.1';
 Params.TcpPort = 1235;
 Params.EnableDecoding = false;
+Params.EnableDecodingOnlyKeyframes = false;
 
 let ParamsWindow;
 try
@@ -120,7 +121,9 @@ try
 	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
     ParamsWindow.AddParam('UdpHost');
     ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
-    ParamsWindow.AddParam('EnableDecoding');
+	ParamsWindow.AddParam('EnableDecoding');
+	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
+	
 }
 catch(e)
 {
@@ -955,8 +958,9 @@ function TCameraWindow(CameraName)
 			//	queue for re-decode for testing
 			if (this.Decoder)
 			{
-				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see 
-				if (IsKeyframe || Params.EnableDecoding)
+				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see
+				let Decode = Params.EnableDecodingOnlyKeyframes ? IsKeyframe : true;
+				if (Decode && Params.EnableDecoding)
 				{
 					//	attempt to emulate udp
 					const PacketMaxSize = 1000;
