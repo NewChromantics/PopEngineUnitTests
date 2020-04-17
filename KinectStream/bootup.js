@@ -908,7 +908,7 @@ function TCameraWindow(CameraName)
 	{
 		while (true)
 		{
-			Pop.Debug("Wait for next decoder packet");
+			//Pop.Debug("Wait for next decoder packet");
 
 			const Frame = await this.Decoder.WaitForNextFrame();
 			this.DecodedTextures = Frame.Planes;
@@ -958,8 +958,17 @@ function TCameraWindow(CameraName)
 				//	always decode a keyframe so SPS&PPS is always setup, and I guess then we see 
 				if (IsKeyframe || Params.EnableDecoding)
 				{
+					//	attempt to emulate udp
+					const PacketMaxSize = 1000;
+					for ( let i=0;	i<Packet.Data.length;	i+=PacketMaxSize )
+					{
+						const Start = i;
+						const End = Math.min( Start + PacketMaxSize, Packet.Data.length );
+						const Chunk = Packet.Data.slice( Start, End );
+						this.Decoder.Decode(Packet.Data);
+					}
 					//Pop.Debug("Decode h264 packet...");
-					this.Decoder.Decode(Packet.Data);
+					//this.Decoder.Decode(Packet.Data);
 				}
 			}
 		}
