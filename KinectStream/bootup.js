@@ -91,21 +91,32 @@ let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 
+const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.Compression = 1;
 Params.ChromaRanges = 6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
 Params.UdpHost = '192.168.0.11';
-Params.UdpHost = '127.0.0.1';
+//Params.UdpHost = '127.0.0.1';
 Params.UdpPort = 1234;
-Params.TcpHost = '127.0.0.1';
+Params.TcpHost = '192.168.0.11';
+//Params.TcpHost = '127.0.0.1';
 Params.TcpPort = 1235;
 Params.EnableDecoding = false;
 Params.EnableDecodingOnlyKeyframes = false;
+
+Params.Encode_Quality = 1;
+Params.Encode_AverageKbps = 50;
+Params.Encode_MaxKbps = 0;
+Params.Encode_Realtime = true;
+Params.Encode_MaximisePowerEfficiency = true;
+Params.Encode_MaxSliceBytes = 0;
+Params.Encode_MaxFrameBuffers = 0;
+Params.Encode_ProfileLevel = 0;//30;
+
 
 let ParamsWindow;
 try
@@ -113,7 +124,6 @@ try
 	ParamsWindow = new Pop.ParamsWindow(Params);
 	ParamsWindow.AddParam('DepthMin',0,65500);
 	ParamsWindow.AddParam('DepthMax',0,65500);
-	ParamsWindow.AddParam('Compression',0,9,Math.floor);
 	ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
 	ParamsWindow.AddParam('DepthSquared');
 	ParamsWindow.AddParam('PingPongLuma');
@@ -123,7 +133,14 @@ try
     ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
 	ParamsWindow.AddParam('EnableDecoding');
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
-	
+	/*
+	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
+	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
+	ParamsWindow.AddParam('Encode_Realtime');
+	ParamsWindow.AddParam('Encode_MaximisePowerEfficiency');
+	ParamsWindow.AddParam('Encode_MaxFrameBuffers',0,20,Math.floor);
+	ParamsWindow.AddParam('Encode_MaxSliceBytes',0,1024,Math.floor);
+	*/
 }
 catch(e)
 {
@@ -132,6 +149,21 @@ catch(e)
 	ParamsWindow = {};
 	ParamsWindow.AddParam = function(){};
 }
+
+function GetEncoderParams()
+{
+	const EncoderKeys = Object.keys(Params).filter( Key => Key.startsWith(EncoderParamPrefix) );
+	const EncoderParams = {};
+	function SetParam(ParamName)
+	{
+		const EncoderKeyName = ParamName.substring(EncoderParamPrefix.length);
+		EncoderParams[EncoderKeyName] = Params[ParamName];
+	}
+	EncoderKeys.forEach(SetParam);
+	return EncoderParams;
+}
+
+
 
 
 let FrameQueue = [];
@@ -896,7 +928,7 @@ function TCameraWindow(CameraName)
 	this.EncodedTextures = [];
 	this.DecodedTextures = [];
 	this.CameraFrameCounter = new Pop.FrameCounter(CameraName);
-	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264");
+	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264 packets");
 	this.EncodedH264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
 	this.DecodedH264Counter = new Pop.FrameCounter(CameraName + " H264 Decoded");
 
@@ -945,7 +977,7 @@ function TCameraWindow(CameraName)
 			}
 			//Pop.Debug(`Got packet x${Packet.Data.length}`,Packet.Data.slice(0,10));
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
-			this.EncodedH264Counter.Add();
+			//this.EncodedH264Counter.Add();	not important
 
 			const Meta = {};
 			Meta.Time = Packet.Time;
@@ -994,19 +1026,21 @@ function TCameraWindow(CameraName)
 				const Time = NewFrame.Time ? NewFrame.Time : Pop.GetTimeNowMs();
 
 				//	remake encoder if compression changes
-				if (this.EncoderCompression != Params.Compression)
+				if ( JSON.stringify(this.EncoderParams) != JSON.stringify(GetEncoderParams()) )
 					this.Encoder = null;
 
 				if (!this.Encoder)
 				{
-					Pop.Debug("New encoder",Params.Compression);
-					this.Encoder = new Pop.Media.H264Encoder(Params.Compression);
-					this.EncoderCompression = Params.Compression;
+					const EncoderParams = GetEncoderParams();
+					Pop.Debug("New encoder",EncoderParams);
+					this.Encoder = new Pop.Media.H264Encoder(EncoderParams);
+					this.EncoderParams = EncoderParams;
 				}
 
 				const EncodedTexture = GetH264Pixels(this.VideoTextures);
 				if ( EncodedTexture )
 				{
+					//EncodedTexture.Clip([0,0,640,480]);
 					this.EncodedTextures = [EncodedTexture];
 					this.Encoder.Encode(EncodedTexture,Time);
 				}
@@ -1039,8 +1073,7 @@ function TCameraWindow(CameraName)
 	const Format = "Depth16";
 	//const Format = "Yuv_8_88_Ntsc_Depth16";
 	//const Format = "Yuv_8_44_Ntsc_Depth16";
-	//	make this a callback!
-	this.EncoderCompression = Params.Compression;
+	this.EncoderParams = null;	//	used to catch changes in params, switch to a callback!
 	this.Encoder = null;
 	this.Source = new Pop.Media.Source(CameraName,Format,LatestOnly);
 	this.Decoder = new Pop.Media.AvcDecoder();
