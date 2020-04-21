@@ -1173,18 +1173,18 @@ const TcpHosts = [[Params.TcpHost,Params.TcpPort]];
 let CurrentNumber = 0;
 async function SendNextNumberFrame(SendFunc)
 {
-	await Pop.Yield(20);
+	await Pop.Yield(10);
 	
 	//	make a buffer of shorts
-	let NumbersPerFrame = 3000;
+	let NumbersPerFrame = 10000;
 	let Shorts = new Uint16Array(NumbersPerFrame);
 	for ( let i=0;	i<NumbersPerFrame;	i++ )
 	{
 		let x = CurrentNumber++;
 		Shorts[i] = x;
 	}
-	
-	SendFunc(Shorts);
+
+	SendFunc(new Uint8Array(Shorts.buffer,Shorts.byteOffset,Shorts.byteLength));
 }
 
 const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
