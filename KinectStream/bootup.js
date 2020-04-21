@@ -1153,6 +1153,7 @@ async function FindCamerasLoop()
 
 Pop.Debug("Hello");
 
+/*
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
@@ -1166,3 +1167,26 @@ UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.
 //	gr: or if the TCP is running, it does. something blocks in TCP that should be async
 const TcpHosts = [[Params.TcpHost,Params.TcpPort]];
 //TcpClientSocketLoop(TcpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+*/
+
+
+let CurrentNumber = 0;
+async function SendNextNumberFrame(SendFunc)
+{
+	await Pop.Yield(20);
+	
+	//	make a buffer of shorts
+	let NumbersPerFrame = 3000;
+	let Shorts = new Uint16Array(NumbersPerFrame);
+	for ( let i=0;	i<NumbersPerFrame;	i++ )
+	{
+		let x = CurrentNumber++;
+		Shorts[i] = x;
+	}
+	
+	SendFunc(Shorts);
+}
+
+const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
+UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextNumberFrame).then(Pop.Debug).catch(Pop.Debug);
+
