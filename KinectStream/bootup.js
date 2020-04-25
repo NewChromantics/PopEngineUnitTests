@@ -107,15 +107,24 @@ Params.TcpHost = '192.168.0.11';
 Params.TcpPort = 1235;
 Params.EnableDecoding = false;
 Params.EnableDecodingOnlyKeyframes = false;
+Params.KeyframeEveryNFrames = 60;
 
-Params.Encode_Quality = 1;
-Params.Encode_AverageKbps = 50;
+Params.Encode_Quality = 2;
+Params.Encode_AverageKbps = 900;
 Params.Encode_MaxKbps = 0;
 Params.Encode_Realtime = true;
 Params.Encode_MaximisePowerEfficiency = true;
 Params.Encode_MaxSliceBytes = 0;
 Params.Encode_MaxFrameBuffers = 0;
-Params.Encode_ProfileLevel = 0;//30;
+Params.Encode_ProfileLevel = 32;
+
+Params.Encode_EncoderThreads = 3;
+Params.Encode_LookaheadThreads = 3;
+Params.Encode_BSlicedThreads = 3;
+Params.Encode_VerboseDebug = true;
+Params.Encode_Deterministic = false;
+Params.Encode_CpuOptimisations = true;
+
 
 
 let ParamsWindow;
@@ -133,14 +142,15 @@ try
     ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
 	ParamsWindow.AddParam('EnableDecoding');
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
-	/*
+	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
+	
 	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
 	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
 	ParamsWindow.AddParam('Encode_Realtime');
 	ParamsWindow.AddParam('Encode_MaximisePowerEfficiency');
 	ParamsWindow.AddParam('Encode_MaxFrameBuffers',0,20,Math.floor);
 	ParamsWindow.AddParam('Encode_MaxSliceBytes',0,1024,Math.floor);
-	*/
+	
 }
 catch(e)
 {
@@ -433,6 +443,9 @@ async function TcpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 
 function GetUvRanges(RangeCount)
 {
+	if (RangeCount <= 1)
+		return [0.5,0.5];
+
 	//	build a unique-uv table with a total of RangeCount
 	let RangeX = Math.sqrt(RangeCount);
 	RangeX = Math.ceil(RangeX);
@@ -1035,14 +1048,21 @@ function TCameraWindow(CameraName)
 					Pop.Debug("New encoder",EncoderParams);
 					this.Encoder = new Pop.Media.H264Encoder(EncoderParams);
 					this.EncoderParams = EncoderParams;
+					this.Encoder.FrameCount = 0;
 				}
 
 				const EncodedTexture = GetH264Pixels(this.VideoTextures);
 				if ( EncodedTexture )
 				{
+					this.Encoder.FrameCount++;
+					const EncodeKeyframe = (this.Encoder.FrameCount % Params.KeyframeEveryNFrames) == 0;
+					
+					const EncodeOptions = {};
+					EncodeOptions.Time = Time;
+					EncodeOptions.Keyframe = EncodeKeyframe;
 					//EncodedTexture.Clip([0,0,640,480]);
 					this.EncodedTextures = [EncodedTexture];
-					this.Encoder.Encode(EncodedTexture,Time);
+					this.Encoder.Encode(EncodedTexture,EncodeOptions);
 				}
 				
 			}
