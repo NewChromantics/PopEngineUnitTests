@@ -994,10 +994,11 @@ function TCameraWindow(CameraName)
 
 			const Meta = {};
 			Meta.Time = Packet.Time;
+			const H264Meta = Pop.H264.GetNaluMeta(Packet.Data);
 			const IsKeyframe = Pop.H264.IsKeyframe(Packet.Data);
-
+			
 			//	send out packet
-			//Pop.Debug("H264 packet is keyframe;",IsKeyframe,"x" + Packet.Data.length);
+			//Pop.Debug(`H264 packet IsKeyframe=${IsKeyframe} x${Packet.Data.length}bytes Meta=${JSON.stringify(H264Meta)}`);
 			QueueFrame(Packet.Data,Meta,IsKeyframe);
 
 			//	queue for re-decode for testing
@@ -1014,7 +1015,7 @@ function TCameraWindow(CameraName)
 						const Start = i;
 						const End = Math.min( Start + PacketMaxSize, Packet.Data.length );
 						const Chunk = Packet.Data.slice( Start, End );
-						this.Decoder.Decode(Packet.Data);
+						this.Decoder.Decode(Chunk);
 					}
 					//Pop.Debug("Decode h264 packet...");
 					//this.Decoder.Decode(Packet.Data);
