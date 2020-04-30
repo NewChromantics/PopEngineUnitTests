@@ -109,6 +109,7 @@ Params.TcpPort = 1235;
 Params.EnableDecoding = true;
 Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 999;
+Params.ShowRawYuv = false;
 
 Params.Encode_Quality = 2;
 Params.Encode_AverageKbps = 900;
@@ -139,11 +140,12 @@ try
 	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
-    ParamsWindow.AddParam('UdpHost');
-    ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
+	ParamsWindow.AddParam('UdpHost');
+	ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
 	ParamsWindow.AddParam('EnableDecoding');
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
 	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
+	ParamsWindow.AddParam('ShowRawYuv');
 	
 	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
 	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
@@ -887,8 +889,7 @@ function GetShaderForTextures(Textures)
 		case "Yuv_8_8_8_Full":	return Yuv8888FragShader;
 		case "Yuv_8_8_8_Ntsc":	return Yuv8888FragShader;
 		case "Uvy_844_Full":	return Uvy844FragShader;
-		//case "Yuv_844_Full":	return Yuv844FragShader;
-		case "Yuv_844_Full":	return BlitFragShader;
+		case "Yuv_844_Full":	return Params.ShowRawYuv ? BlitFragShader : Yuv844FragShader;
 		case "RGBA":			return BlitFragShader;
 		case "Greyscale":		return BlitFragShader;
 		case "Luma_Ntsc":		return BlitFragShader;
