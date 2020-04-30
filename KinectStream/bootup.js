@@ -96,7 +96,7 @@ const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.ChromaRanges = 6;
+Params.ChromaRanges = 4;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
@@ -110,6 +110,7 @@ Params.EnableDecoding = true;
 Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 999;
 Params.ShowRawYuv = false;
+Params.TestDepthToYuv844 = false;
 
 Params.Encode_Quality = 2;
 Params.Encode_AverageKbps = 900;
@@ -146,6 +147,7 @@ try
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
 	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
 	ParamsWindow.AddParam('ShowRawYuv');
+	ParamsWindow.AddParam('TestDepthToYuv844');
 	
 	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
 	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
@@ -837,6 +839,13 @@ function GetH264Pixels(OrigPlanes)
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
+	//if (Params.TestDepthToYuv8_8_8)
+	{
+		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		return Yuv_8_8_8;
+	}
+
+	if (Params.TestDepthToYuv844)
 	{
 		const Yuv_844 = Pop.Opencv.TestDepthToYuv844(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
 		return Yuv_844;
@@ -1025,7 +1034,7 @@ function TCameraWindow(CameraName)
 				if (Decode && Params.EnableDecoding)
 				{
 					//	attempt to emulate udp
-					const PacketMaxSize = 1000;
+					const PacketMaxSize = 991000;
 					for ( let i=0;	i<Packet.Data.length;	i+=PacketMaxSize )
 					{
 						const Start = i;
@@ -1079,7 +1088,7 @@ function TCameraWindow(CameraName)
 					EncodeOptions.Keyframe = EncodeKeyframe;
 					//EncodedTexture.Clip([0,0,640,480]);
 					this.EncodedTextures = [EncodedTexture];
-					//this.Encoder.Encode(EncodedTexture,EncodeOptions);
+					this.Encoder.Encode(EncodedTexture,EncodeOptions);
 				}
 				
 			}
@@ -1200,7 +1209,7 @@ FindCamerasLoop().catch(Pop.Debug);
 const WebsocketPorts = [Params.WebsocketPort];
 //WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
-const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
+const UdpHosts = [['127.0.0.1',Params.UdpPort],[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 //	gr: wiuthout UDP this doesnt find the kinect!?
