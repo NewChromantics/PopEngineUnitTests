@@ -61,7 +61,7 @@ Pop.Include = function (Filename)
 let EngineDebug;
 try
 {
-	EngineDebug = new Pop.Engine.StatsWindow( Ios ? Ios.StatsLabel : undefined );
+	//EngineDebug = new Pop.Engine.StatsWindow( Ios ? Ios.StatsLabel : undefined );
 }
 catch(e)
 {
@@ -80,6 +80,7 @@ Pop.Include('../PopEngineCommon/PopH264.js');
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let Yuv844FragShader = Pop.LoadFileAsString('Yuv844.frag.glsl');
 let Yuv8_88FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
 let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
 let Yuv888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
@@ -105,9 +106,9 @@ Params.UdpPort = 1234;
 Params.TcpHost = '192.168.0.11';
 //Params.TcpHost = '127.0.0.1';
 Params.TcpPort = 1235;
-Params.EnableDecoding = false;
-Params.EnableDecodingOnlyKeyframes = false;
-Params.KeyframeEveryNFrames = 60;
+Params.EnableDecoding = true;
+Params.EnableDecodingOnlyKeyframes = true;
+Params.KeyframeEveryNFrames = 999;
 
 Params.Encode_Quality = 2;
 Params.Encode_AverageKbps = 900;
@@ -834,6 +835,12 @@ function GetH264Pixels(OrigPlanes)
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
+	{
+		const Yuv_844 = Pop.Opencv.TestDepthToYuv844(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		return Yuv_844;
+	}
+
+	
 	let Yuv_8_8_8;
 	//const Funcs = { Dll: Depth16ToYuv_Dll,Wasm: Depth16ToYuv_Wasm,Js: Depth16ToYuv_Js };
 	const Funcs = { Js: Depth16ToYuv_Js };
@@ -857,6 +864,47 @@ function GetH264Pixels(OrigPlanes)
 	return YuvImage;
 }
 
+function GetShaderForTextures(Textures)
+{
+	const Format0 = Textures[0].GetFormat();
+	
+	switch(Format0)
+	{
+		//	special cases
+		case "Greyscale":
+			if ( Textures.length == 3)
+				return Yuv8_8_8FragShader;
+			return BlitFragShader;
+
+		case "Yuv_8_8_8_Full":
+		case "Yuv_8_8_8_Ntsc":
+			if ( Textures.length == 1)
+				return Yuv8_8_8_OneImageFragShader;
+			return BlitFragShader;
+
+		case "YYuv_8888_Full":	return Yuv8888FragShader;
+		case "YYuv_8888_Ntsc":	return Yuv8888FragShader;
+		case "Yuv_8_8_8_Full":	return Yuv8888FragShader;
+		case "Yuv_8_8_8_Ntsc":	return Yuv8888FragShader;
+		case "Uvy_844_Full":	return Uvy844FragShader;
+		//case "Yuv_844_Full":	return Yuv844FragShader;
+		case "Yuv_844_Full":	return BlitFragShader;
+		case "RGBA":			return BlitFragShader;
+		case "Greyscale":		return BlitFragShader;
+		case "Luma_Ntsc":		return BlitFragShader;
+		case "KinectDepth":		return DepthmmFragShader;
+		case "Depth16mm":		return DepthmmFragShader;
+		case "uyvy":			return UyvyFragShader;
+	
+		default:break;
+	}
+	
+	let Formats = [];
+	Textures.forEach(t => Formats.push(t.GetFormat()));
+	Pop.Debug("No specific shader for " + Formats.join(','));
+	return BlitFragShader;
+}
+
 function RenderImage(RenderTarget,Textures,Rect)
 {
 	if (!Textures)
@@ -877,42 +925,9 @@ function RenderImage(RenderTarget,Textures,Rect)
 	if (!Texture1) Texture1 = BlackTexture;
 	if (!Texture2) Texture2 = BlackTexture;
 
-
 	//Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
-	let ShaderSource = BlitFragShader;
-
-	if (Texture0.GetFormat() == "YYuv_8888_Full")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "YYuv_8888_Ntsc")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "Uvy_844_Full")
-		ShaderSource = Uvy844FragShader;
-	else if (Texture0.GetFormat() == "Greyscale" && Textures.length == 3)
-		ShaderSource = Yuv8_8_8FragShader;
-	else if (Texture0.GetFormat() == "RGBA")
-		ShaderSource = BlitFragShader;
-	else if (Texture0.GetFormat() == "Greyscale")
-		ShaderSource = BlitFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full" && Textures.length == 1)
-		ShaderSource = Yuv8_8_8_OneImageFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc" && Textures.length == 1)
-		ShaderSource = Yuv8_8_8_OneImageFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "KinectDepth")
-		ShaderSource = DepthmmFragShader;
-	else if (Texture0.GetFormat() == "Depth16mm")
-		ShaderSource = DepthmmFragShader;
-	else if (Texture0.GetFormat() == "uyvy")
-		ShaderSource = UyvyFragShader;
-	else
-	{
-		let Formats = [];
-		this.Textures.forEach(t => Formats.push(t.GetFormat()));
-		Pop.Debug("No specific shader for " + Formats.join(','));
-	}
+	let ShaderSource = GetShaderForTextures(Textures);
+	
 
 	let FragShader = Pop.GetShader(RenderTarget,ShaderSource,VertShader);
 
@@ -1063,7 +1078,7 @@ function TCameraWindow(CameraName)
 					EncodeOptions.Keyframe = EncodeKeyframe;
 					//EncodedTexture.Clip([0,0,640,480]);
 					this.EncodedTextures = [EncodedTexture];
-					this.Encoder.Encode(EncodedTexture,EncodeOptions);
+					//this.Encoder.Encode(EncodedTexture,EncodeOptions);
 				}
 				
 			}
@@ -1134,12 +1149,13 @@ async function FindCamerasLoop()
 	{
 		function IsKinectDevice(Device)
 		{
+			/*
 			//	testing
 			if ( Device.Serial.includes('Back') )
 				return true;
 			if ( Device.Serial.includes('FaceTime') )
 				return true;
-
+*/
 			if ( Device.Serial.includes('KinectAzure') )
 				return true;
 
@@ -1159,7 +1175,9 @@ async function FindCamerasLoop()
 			Pop.Debug("Pop.Media.EnumDevices found(" + JSON.stringify(Devices) + ") result type=" + (typeof Devices));
 			Devices = Devices.Devices.filter(IsKinectDevice);
 
-			Devices.forEach(CreateCamera);
+			//	gr: only create one
+			CreateCamera(Devices[0]);
+			//Devices.forEach(CreateCamera);
 
 			//	todo: EnumDevices needs to change to "OnDevicesChanged"
 			break;
@@ -1174,7 +1192,7 @@ async function FindCamerasLoop()
 
 Pop.Debug("Hello");
 
-/*
+
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
@@ -1188,7 +1206,7 @@ UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.
 //	gr: or if the TCP is running, it does. something blocks in TCP that should be async
 const TcpHosts = [[Params.TcpHost,Params.TcpPort]];
 //TcpClientSocketLoop(TcpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
-*/
+/*
 
 
 let CurrentNumber = 0;
@@ -1210,4 +1228,4 @@ async function SendNextNumberFrame(SendFunc)
 
 const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextNumberFrame).then(Pop.Debug).catch(Pop.Debug);
-
+*/
