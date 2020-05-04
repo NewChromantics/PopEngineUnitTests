@@ -80,7 +80,7 @@ Pop.Include('../PopEngineCommon/PopH264.js');
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
-let Yuv844FragShader = Pop.LoadFileAsString('Yuv844.frag.glsl');
+let Yuv8_88_OneImageFragShader = Pop.LoadFileAsString('Yuv8_88_OneImage.frag.glsl');
 let Yuv8_88FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
 let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
 let Yuv888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
@@ -96,7 +96,7 @@ const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.ChromaRanges = 4;
+Params.ChromaRanges = 25;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
@@ -110,9 +110,9 @@ Params.EnableDecoding = true;
 Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 999;
 Params.ShowRawYuv = false;
-Params.TestDepthToYuv844 = false;
+Params.TestDepthToYuv8_88 = true;
 
-Params.Encode_Quality = 2;
+Params.Encode_Quality = 1;
 Params.Encode_AverageKbps = 900;
 Params.Encode_MaxKbps = 0;
 Params.Encode_Realtime = true;
@@ -121,9 +121,9 @@ Params.Encode_MaxSliceBytes = 0;
 Params.Encode_MaxFrameBuffers = 0;
 Params.Encode_ProfileLevel = 32;
 
-Params.Encode_EncoderThreads = 3;
-Params.Encode_LookaheadThreads = 3;
-Params.Encode_BSlicedThreads = 3;
+Params.Encode_EncoderThreads = 5;
+Params.Encode_LookaheadThreads = 5;
+Params.Encode_BSlicedThreads = 5;
 Params.Encode_VerboseDebug = true;
 Params.Encode_Deterministic = false;
 Params.Encode_CpuOptimisations = true;
@@ -147,7 +147,7 @@ try
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
 	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
 	ParamsWindow.AddParam('ShowRawYuv');
-	ParamsWindow.AddParam('TestDepthToYuv844');
+	ParamsWindow.AddParam('TestDepthToNV12');
 	
 	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
 	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
@@ -839,17 +839,19 @@ function GetH264Pixels(OrigPlanes)
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
+
+	if (Params.TestDepthToYuv8_88)
+	{
+		const Yuv = Pop.Opencv.TestDepthToYuv8_88(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		return Yuv;
+	}
+
 	//if (Params.TestDepthToYuv8_8_8)
 	{
 		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
 		return Yuv_8_8_8;
 	}
 
-	if (Params.TestDepthToYuv844)
-	{
-		const Yuv_844 = Pop.Opencv.TestDepthToYuv844(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
-		return Yuv_844;
-	}
 
 	
 	let Yuv_8_8_8;
@@ -889,9 +891,15 @@ function GetShaderForTextures(Textures)
 
 		case "Yuv_8_8_8_Full":
 		case "Yuv_8_8_8_Ntsc":
-			if ( Textures.length == 1)
+			if (Textures.length == 1)
 				return Yuv8_8_8_OneImageFragShader;
 			return BlitFragShader;
+
+		case "Yuv_8_88_Full":
+		case "Yuv_8_88_Ntsc":
+			if (Textures.length == 1)
+				return Yuv8_88_OneImageFragShader;
+			return Yuv8_88_FragShader;
 
 		case "YYuv_8888_Full":	return Yuv8888FragShader;
 		case "YYuv_8888_Ntsc":	return Yuv8888FragShader;
