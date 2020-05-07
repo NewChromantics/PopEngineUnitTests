@@ -79,15 +79,15 @@ Pop.Include('../PopEngineCommon/PopH264.js');
 
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
-let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
-let Yuv8_88_OneImageFragShader = Pop.LoadFileAsString('Yuv8_88_OneImage.frag.glsl');
-let Yuv8_88FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
-let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
-let Yuv888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
-let Yuv8_8_8_OneImageFragShader = Pop.LoadFileAsString('Yuv8_8_8_OneImage.frag.glsl');
-let DepthmmFragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
-let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
-let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let Uvy844_FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let Yuv8_88_OneImage_FragShader = Pop.LoadFileAsString('Yuv8_88_OneImage.frag.glsl');
+let Yuv8_88_TwoImage_FragShader = Pop.LoadFileAsString('Yuv8_88_TwoImage.frag.glsl');
+let Yuv8_8_8_FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
+let Yuv888_FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
+let Yuv8_8_8_OneImage_FragShader = Pop.LoadFileAsString('Yuv8_8_8_OneImage.frag.glsl');
+let Depthmm_FragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
+let Blit_FragShader = Pop.LoadFileAsString('Blit.frag.glsl');
+let Uyvy_FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
@@ -96,7 +96,7 @@ const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.ChromaRanges = 25;
+Params.ChromaRanges = 6*6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
@@ -111,6 +111,7 @@ Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 999;
 Params.ShowRawYuv = false;
 Params.TestDepthToYuv8_88 = true;
+
 
 Params.Encode_Quality = 1;
 Params.Encode_AverageKbps = 900;
@@ -131,9 +132,13 @@ Params.Encode_CpuOptimisations = true;
 
 
 let ParamsWindow;
+function OnParamsChanged(Params,Key)
+{
+	Pop.Debug(`${Key} changed`);
+}
 try
 {
-	ParamsWindow = new Pop.ParamsWindow(Params);
+	ParamsWindow = new Pop.ParamsWindow(Params,OnParamsChanged);
 	ParamsWindow.AddParam('DepthMin',0,65500);
 	ParamsWindow.AddParam('DepthMax',0,65500);
 	ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
@@ -880,39 +885,40 @@ function GetH264Pixels(OrigPlanes)
 function GetShaderForTextures(Textures)
 {
 	const Format0 = Textures[0].GetFormat();
-	
+	//Pop.Debug(`Format=${Format0} x${Textures.length}`);
 	switch(Format0)
 	{
 		//	special cases
+		case "Luma_Ntsc":
 		case "Greyscale":
 			if ( Textures.length == 3)
-				return Yuv8_8_8FragShader;
-			return BlitFragShader;
+				return Yuv8_8_8_FragShader;
+			if ( Textures.length == 2)
+				return Yuv8_88_TwoImage_FragShader;
+			return Blit_FragShader;
 
 		case "Yuv_8_8_8_Full":
 		case "Yuv_8_8_8_Ntsc":
 			if (Textures.length == 1)
-				return Yuv8_8_8_OneImageFragShader;
-			return BlitFragShader;
+				return Yuv8_8_8_OneImage_FragShader;
+			return Blit_FragShader;
 
 		case "Yuv_8_88_Full":
 		case "Yuv_8_88_Ntsc":
 			if (Textures.length == 1)
-				return Yuv8_88_OneImageFragShader;
+				return Yuv8_88_OneImage_FragShader;
 			return Yuv8_88_FragShader;
 
-		case "YYuv_8888_Full":	return Yuv8888FragShader;
-		case "YYuv_8888_Ntsc":	return Yuv8888FragShader;
-		case "Yuv_8_8_8_Full":	return Yuv8888FragShader;
-		case "Yuv_8_8_8_Ntsc":	return Yuv8888FragShader;
-		case "Uvy_844_Full":	return Uvy844FragShader;
-		case "Yuv_844_Full":	return Params.ShowRawYuv ? BlitFragShader : Yuv844FragShader;
-		case "RGBA":			return BlitFragShader;
-		case "Greyscale":		return BlitFragShader;
-		case "Luma_Ntsc":		return BlitFragShader;
-		case "KinectDepth":		return DepthmmFragShader;
-		case "Depth16mm":		return DepthmmFragShader;
-		case "uyvy":			return UyvyFragShader;
+		case "YYuv_8888_Full":	return Yuv8888_FragShader;
+		case "YYuv_8888_Ntsc":	return Yuv8888_FragShader;
+		case "Yuv_8_8_8_Full":	return Yuv8888_FragShader;
+		case "Yuv_8_8_8_Ntsc":	return Yuv8888_FragShader;
+		case "Uvy_844_Full":	return Uvy844_FragShader;
+		case "Yuv_844_Full":	return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
+		case "RGBA":			return Blit_FragShader;
+		case "KinectDepth":		return Depthmm_FragShader;
+		case "Depth16mm":		return Depthmm_FragShader;
+		case "uyvy":			return Uyvy_FragShader;
 	
 		default:break;
 	}
@@ -920,7 +926,7 @@ function GetShaderForTextures(Textures)
 	let Formats = [];
 	Textures.forEach(t => Formats.push(t.GetFormat()));
 	Pop.Debug("No specific shader for " + Formats.join(','));
-	return BlitFragShader;
+	return Blit_FragShader;
 }
 
 function RenderImage(RenderTarget,Textures,Rect)
@@ -994,7 +1000,7 @@ function TCameraWindow(CameraName)
 			const Frame = await this.Decoder.WaitForNextFrame();
 			this.DecodedTextures = Frame.Planes;
 			this.DecodedH264Counter.Add();
-			Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
+			//Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
 		}
 	}
 
@@ -1059,6 +1065,8 @@ function TCameraWindow(CameraName)
 
 	this.ListenForFrames = async function ()
 	{
+		//	initial pause to let window thread start
+		await Pop.Yield(2000);
 		while (true)
 		{
 			try

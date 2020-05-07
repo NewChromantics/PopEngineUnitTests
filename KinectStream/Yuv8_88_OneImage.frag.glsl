@@ -72,8 +72,8 @@ void GetPlaneVs(out float LumaBottom)
 	//	layout is w x h luma
 	//			+ w x h/2 chroma u,v
 	//	in BYTES, so a row is twice as long in chroma
-	float LumaWeight = 1 * 1;
-	float ChromaUVWeight = 1 * 0.5;
+	float LumaWeight = 1;
+	float ChromaUVWeight = 0.5;
 	float TotalWeight = LumaWeight + ChromaUVWeight;
 	LumaWeight /= TotalWeight;
 	ChromaUVWeight /= TotalWeight;
