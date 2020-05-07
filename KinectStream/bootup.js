@@ -111,6 +111,7 @@ Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 999;
 Params.ShowRawYuv = false;
 Params.TestDepthToYuv8_88 = true;
+Params.RecordH264ToFile = false;
 
 
 Params.Encode_Quality = 1;
@@ -144,7 +145,6 @@ try
 	ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
 	ParamsWindow.AddParam('DepthSquared');
 	ParamsWindow.AddParam('PingPongLuma');
-	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
 	ParamsWindow.AddParam('UdpHost');
 	ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
@@ -152,7 +152,9 @@ try
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
 	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
 	ParamsWindow.AddParam('ShowRawYuv');
-	ParamsWindow.AddParam('TestDepthToNV12');
+	ParamsWindow.AddParam('TestDepthToYuv8_88');
+	ParamsWindow.AddParam('RecordH264ToFile');
+	
 	
 	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
 	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
@@ -183,6 +185,32 @@ function GetEncoderParams()
 	return EncoderParams;
 }
 
+
+let RecordH264Filename = null;
+function GetRecordH264Filename(CameraName)
+{
+	if ( !RecordH264Filename )
+	{
+		RecordH264Filename = CameraName;
+
+		const Now = Date.now();
+		/* now is just a timestamp in javascript core
+		const y = Now.getFullYear();
+		const m = Now.getMonth();
+		const d = Now.getDate();
+		const h = Now.getHours();
+		const n = Now.getMinutes();
+		RecordH264Filename += `${y}-${m}-${d}-${h}-${n}`;*/
+		RecordH264Filename += '_' + Now;
+		RecordH264Filename += '.h264';
+		
+		//	todo: API should do friendly filename fixer
+		RecordH264Filename = RecordH264Filename.replace(':','_');
+		//Pop.ShowFileInFinder(RecordH264Filename);
+		Pop.Debug("Recording to "+RecordH264Filename);
+	}
+	return RecordH264Filename;
+}
 
 
 
@@ -217,7 +245,7 @@ function OnNewPeer(Peer,Server)
 	CriticalFrames.forEach(SendFrame);
 }
 
-function QueueFrame(Data,Meta,Keyframe)
+function QueueFrame(Data,Meta,Keyframe,CameraName)
 {
 	const FramePacket = {};
 	FramePacket.Meta = Meta;
@@ -225,6 +253,15 @@ function QueueFrame(Data,Meta,Keyframe)
 	FramePacket.Keyframe = Keyframe;
 	FrameQueue.push(FramePacket);
 
+	if ( Params.RecordH264ToFile )
+	{
+		//	gr: do we want something more sophisticated for streaming?
+		//		buffer up? do it in the api? keep a file handle open?
+		const Filename = GetRecordH264Filename(CameraName);
+		const Append = true;
+		Pop.WriteToFile( Filename, FramePacket.Data, Append );
+	}
+	
 	const Type = Pop.H264.GetNaluType(Data);
 	//Pop.Debug(`QueueFrame Type=${Type} Keyframe=${Keyframe}`);
 	if ( Type == Pop.H264.SPS )	LastSpsPackets.push(FramePacket);
@@ -976,6 +1013,7 @@ function RenderImage(RenderTarget,Textures,Rect)
 
 function TCameraWindow(CameraName)
 {
+	this.CameraName = CameraName;
 	this.VideoTextures = [];
 	this.EncodedTextures = [];
 	this.DecodedTextures = [];
@@ -1038,7 +1076,7 @@ function TCameraWindow(CameraName)
 			
 			//	send out packet
 			//Pop.Debug(`H264 packet IsKeyframe=${IsKeyframe} x${Packet.Data.length}bytes Meta=${JSON.stringify(H264Meta)}`);
-			QueueFrame(Packet.Data,Meta,IsKeyframe);
+			QueueFrame(Packet.Data,Meta,IsKeyframe,this.CameraName);
 
 			//	queue for re-decode for testing
 			if (this.Decoder)
