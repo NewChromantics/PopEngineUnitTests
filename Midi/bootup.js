@@ -52,6 +52,34 @@ MidiControllerMessages.ResetAllControllers = 121;
 MidiControllerMessages.LocalControlOnOff = 122;
 MidiControllerMessages.AllNotesOff = 123;
 
+function MidiControllerMessageHasThirdByte(Message)
+{
+	switch (Message)
+	{
+		case MidiControllerMessages.DataEntryPlus1:
+		case MidiControllerMessages.DataEntryMinus1:
+			return false;
+		default:
+			return true;
+	}
+}
+
+const MetaEvents = {};
+MetaEvents.EndOfTrack = 0x2f;
+
+//	https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
+const StatusMessages = {};
+StatusMessages.Zero = 0b0000;
+StatusMessages.Six = 0b0110;
+StatusMessages.Three = 0b0011;
+StatusMessages.NoteOff = 0b1000;
+StatusMessages.NoteOn = 0b1001;
+StatusMessages.PolyKeyPressure = 0b1010;
+StatusMessages.ControlChange = 0b1011;
+StatusMessages.ProgramChange = 0b1100;
+StatusMessages.ChannelPressure = 0b1101;
+StatusMessages.PitchBendChange = 0b1110;
+StatusMessages.SystemMessage = 0b1111;
 
 function SliceString(Array,Start,Length)
 {
@@ -96,6 +124,7 @@ Pop.Midi.Parse = function (FileContents)
 		{
 			const Extra = Count - 1;
 			if (DataPosition + Extra == Data.length)
+				//throw `Peek8 is last`;
 				return null;
 			if (DataPosition + Extra > Data.length)
 				throw RangeError("Track Data OOB")
@@ -119,6 +148,8 @@ Pop.Midi.Parse = function (FileContents)
 				const v8 = Pop8();
 				const Continuation = v8 & 0x80;
 				const v7 = v8 & (~0x80);
+				//const Continuation = v8 & 0x01;
+				//const v7 = v8 & (~0x01);
 				Value <<= 8;
 				Value |= v7;
 				if (!Continuation)
@@ -129,12 +160,23 @@ Pop.Midi.Parse = function (FileContents)
 
 		function PopData(Length)
 		{
-			return Pop8(Length);
+			const Data = Peek8(Length);
+			DataPosition += Length;
+			return Data;
 		}
 
-		function ParseMidiEvent()
+		function ParseMidiEvent(StatusAndChannel)
 		{
+			const Status = (StatusAndChannel & 0b11110000) >> 4;
+			const Channel = StatusAndChannel & 0b00001111;
 			const EventControllerMessage = Pop8();
+
+			let StatusMessage = Object.keys(StatusMessages).find(k => StatusMessages[k] === Status);
+			if (!StatusMessage)
+				StatusMessage = Status.toString(16);
+
+			//StatusMessages.ProgramChange
+
 			let Message = Object.keys(MidiControllerMessages).find(k => MidiControllerMessages[k] === EventControllerMessage);
 
 			//MidiControllerMessages.entries().filter()
@@ -142,8 +184,10 @@ Pop.Midi.Parse = function (FileContents)
 			Message = Message ? Message + ' ' : '';
 			Message += '#'+EventControllerMessage;
 			
-			const Event3 = Pop8();
-			Pop.Debug(`Midi event: ${Message},${Event3.toString(16)}`);
+			let Event3 = MidiControllerMessageHasThirdByte(EventControllerMessage) ? Pop8() : null;
+			if (Event3 !== null)
+				Event3 = Event3.toString(16);
+			Pop.Debug(`Midi event: ${Message} Channel[${Channel}] Status=${StatusMessage} ${Event3}`);
 		}
 
 		function ParseSystemEvent(Event)
@@ -156,6 +200,13 @@ Pop.Midi.Parse = function (FileContents)
 		function ParseMetaEvent()
 		{
 			const Event2 = Pop8();
+			if (Event2 == MetaEvents.EndOfTrack)
+			{
+				const Length0 = Pop8();
+				//const Length0 = 0;
+				Pop.Debug(`EndOfTrack length=${Length0}==0`);
+				return;
+			}
 			const Length = PopVariableLengthValue();
 			Pop.Debug(`Meta event #${Event2.toString(16)} x${Length}`);
 			const EventData = PopData(Length);
@@ -174,16 +225,22 @@ Pop.Midi.Parse = function (FileContents)
 				case MetaEvent:
 					return ParseMetaEvent();
 				default:
-					return ParseMidiEvent();
+					return ParseMidiEvent(Event);
 			}
 		}
 
 		//	parse the data
 		let Time = 0;
+		while(true)
 		while (Peek8()!==null)
 		{
+			const Next = Peek8();
+			//Pop.Debug(`Next= ${Next}`);
+			
 			const TimeSinceLast = PopVariableLengthValue();
 			const Event = Pop8();
+			//Pop.Debug(`Next= ${Next} Event=${Event} Time=${TimeSinceLast} DataPos ${DataPosition}/${Data.length}`);
+			Pop.Debug(`Event=${Event} Time=${TimeSinceLast} DataPos ${DataPosition}/${Data.length}`);
 			ParseEvent(Event);
 		}
 
@@ -232,6 +289,8 @@ Pop.Midi.Parse = function (FileContents)
 	}
 }
 
+//	https://wiki.ccarh.org/wiki/MIDI_file_parsing_homework for testing parsing
 const MidiFilename = 'Test.mid';
+//const MidiFilename = 'Twinkle.mid';
 const MidiContents = Pop.LoadFileAsArrayBuffer(MidiFilename);
 Pop.Midi.Parse(MidiContents);
