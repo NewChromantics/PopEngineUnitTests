@@ -1,7 +1,7 @@
 
 let Window = new Pop.Gui.Window("Platform Native Window!");
-let Slider = new Pop.Gui.Slider( Window, [0,0,600,80] );
-let Label = new Pop.Gui.Label( Window, [0,80,600,30] );
+let Slider = new Pop.Gui.Slider( Window, [0,0,600,40] );
+let Label = new Pop.Gui.Label( Window, [0,40,600,30] );
 Label.SetValue("Hello #");
 Slider.SetMinMax( 0, 100 );
 Slider.SetValue( 33 );
@@ -10,7 +10,7 @@ Slider.OnChanged = function(Value)
 	Label.SetValue("Hello " + Value);
 }
 
-let Slider2 = new Pop.Gui.Slider( Window, [0,110,600,10] );
+let Slider2 = new Pop.Gui.Slider( Window, [0,80,600,10] );
 Slider2.SetMinMax( 0, 100 );
 Slider2.OnChanged = function(Value)
 {
@@ -18,7 +18,7 @@ Slider2.OnChanged = function(Value)
 	Slider.OnChanged(Value);
 }
 
-let TickBox = new Pop.Gui.TickBox( Window, [0,120,600,80] );
+let TickBox = new Pop.Gui.TickBox( Window, [0,90,600,80] );
 TickBox.SetValue(false);
 TickBox.OnChanged = function(Value)
 {
@@ -41,3 +41,66 @@ ColourBox.OnChanged = function(Value)
 //	init label
 ColourBox.OnChanged(Colour);
 
+
+
+
+function NormalToRedGreenBlue(Normal)
+{
+	function Range(Min,Max,Value)
+	{
+		return (Value-Min) / (Max-Min);
+	}
+	function float3(x,y,z)
+	{
+		return [x,y,z];
+	}
+	
+	if ( Normal < 0 )
+	{
+		return float3(0,0,0);
+	}
+	else if ( Normal < 0.25 )
+	{
+		Normal = Range( 0.0, 0.25, Normal );
+		return float3( 1, Normal, 0 );
+	}
+	else if ( Normal <= 0.5 )
+	{
+		Normal = Range( 0.25, 0.50, Normal );
+		return float3( 1.0-Normal, 1, 0 );
+	}
+	else if ( Normal <= 0.75 )
+	{
+		Normal = Range( 0.50, 0.75, Normal );
+		return float3( 0, 1, Normal );
+	}
+	else if ( Normal <= 1 )
+	{
+		Normal = Range( 0.75, 1.00, Normal );
+		return float3( 0, 1.0-Normal, 1 );
+	}
+	
+	//	>1
+	return float3( 1,1,1 );
+}
+
+
+function MakeRainbowImage(Width,Height)
+{
+	const Pixels = new Pop.Image();
+	const Format = 'RGB';
+	const PixelBuffer = new Uint8Array( Width * Height * 3 );
+	for ( let i=0;	i<PixelBuffer.length; i+=3 )
+	{
+		const f = i/PixelBuffer.length;
+		const rgb = NormalToRedGreenBlue(f);
+		PixelBuffer[i+0] = rgb[0] * 255;
+		PixelBuffer[i+1] = rgb[1] * 255;
+		PixelBuffer[i+2] = rgb[2] * 255;
+	}
+	Pixels.WritePixels( Width, Height, PixelBuffer, Format );
+	return Pixels;
+}
+const Pixels = MakeRainbowImage(200,200);
+const Image = new Pop.Gui.ImageMap(Window,[0,270,Pixels.GetWidth(),Pixels.GetHeight()]);
+Image.SetImage(Pixels);
