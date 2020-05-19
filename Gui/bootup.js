@@ -19,30 +19,25 @@ Slider2.OnChanged = function(Value)
 }
 
 let TickBox = new Pop.Gui.TickBox( Window, [0,120,600,80] );
-let TickLabel = new Pop.Gui.Label( Window, [0,200,600,30] );
 TickBox.SetValue(false);
 TickBox.OnChanged = function(Value)
 {
-	TickLabel.SetValue("Tickbox = " + Value);
+	TickBox.SetLabel("Tickbox = " + Value);
 }
 
 
 
-let Colour = [0,128,255];
-let ColourBox = new Pop.Gui.TickBox( Window, [0,280,600,80] );
-let ColourLabel = new Pop.Gui.Label( Window, [0,200,600,30] );
-ColourBox.SetValue(false);
+let Colour = [1,0.5,0.1];
+const ColourLabel = new Pop.Gui.Label( Window, [0,200,300,30] );
+const ColourBox = new Pop.Gui.Colour(Window,[0,230,300,40]);
+ColourBox.SetValue(Colour);
 ColourBox.OnChanged = function(Value)
 {
-	let ColourPicker = new Pop.Gui.ColourPicker( Colour );
-	ColourPicker.OnChanged = function(Value)
-	{
-		Colour = Value;
-		ColourLabel.SetValue("Rgb = " + Colour[0] + "," + Colour[1] + "," + Colour[2] );
-	}
-	ColourPicker.OnClosed = function()
-	{
-		ColourBox.SetValue(false);
-	}
+	//	replace colour values (doing = messes up the mapping below?)
+	Colour.splice( 0, Colour.length, ...Value );
+	const ColourString = Colour.map( f=>f.toFixed(3) ).join(', ');
+	ColourLabel.SetValue(`Rgb = ${ColourString}`);
 }
+//	init label
+ColourBox.OnChanged(Colour);
 
