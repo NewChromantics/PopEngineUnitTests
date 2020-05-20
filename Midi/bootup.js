@@ -1,4 +1,31 @@
-const Window = new Pop.Gui.Window("I love midi!");
+
+function Array_GetKey(TheArray,Value)
+{
+	const Match = Object.keys(TheArray).find(k => TheArray[k] === Value);
+	return Match;
+}
+
+//	http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html#BMA1_3
+//	value => name
+function GetNoteName(MidiNoteValue)
+{
+	const Note = MidiNoteValue % 12;
+	const Octave = Math.floor(MidiNoteValue/12);
+	//	this produces a filename + url friendly note name C~_1 D_1 F~3 B5
+	const NoteNames = ['C','C~','D','D~','E','F','F~','G','G~','A','A~','B'];
+	const OctaveNames = ['_1',0,1,2,3,4,5,6,7,8,9];
+	if ( Note < 0 || Note >= NoteNames.length || Octave < 0 || Octave >= OctaveNames.length )
+		throw `Midi note value ${MidiNoteValue} out of range (Note=${Note} Octave=${Octave})`;
+	return NoteNames[Note]+OctaveNames[Octave];
+}
+
+function GetNoteNames()
+{
+	const Names = [];
+	for ( let i=0;	i<128;	i++ )
+		Names.push(GetNoteName(i));
+	return Names;
+}
 
 const MidiControllerMessages = {};
 MidiControllerMessages.BankSelect = 0;
@@ -52,34 +79,29 @@ MidiControllerMessages.ResetAllControllers = 121;
 MidiControllerMessages.LocalControlOnOff = 122;
 MidiControllerMessages.AllNotesOff = 123;
 
-function MidiControllerMessageHasThirdByte(Message)
-{
-	switch (Message)
-	{
-		case MidiControllerMessages.DataEntryPlus1:
-		case MidiControllerMessages.DataEntryMinus1:
-			return false;
-		default:
-			return true;
-	}
-}
-
 const MetaEvents = {};
 MetaEvents.EndOfTrack = 0x2f;
 
+//	http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html#BMA1_
 //	https://www.midi.org/specifications-old/item/table-1-summary-of-midi-message
-const StatusMessages = {};
-StatusMessages.Zero = 0b0000;
-StatusMessages.Six = 0b0110;
-StatusMessages.Three = 0b0011;
-StatusMessages.NoteOff = 0b1000;
-StatusMessages.NoteOn = 0b1001;
-StatusMessages.PolyKeyPressure = 0b1010;
-StatusMessages.ControlChange = 0b1011;
-StatusMessages.ProgramChange = 0b1100;
-StatusMessages.ChannelPressure = 0b1101;
-StatusMessages.PitchBendChange = 0b1110;
-StatusMessages.SystemMessage = 0b1111;
+const MidiEvents = {};
+MidiEvents.Zero = 0b0000;
+MidiEvents.Six = 0b0110;
+MidiEvents.Three = 0b0011;
+MidiEvents.NoteOff = 0b1000;
+MidiEvents.NoteOn = 0b1001;
+MidiEvents.PolyKeyPressure = 0b1010;
+MidiEvents.ControlChange = 0b1011;
+MidiEvents.ProgramChange = 0b1100;
+MidiEvents.ChannelPressure = 0b1101;
+MidiEvents.PitchBendChange = 0b1110;
+MidiEvents.SystemMessage = 0b1111;
+
+MidiEvents.GetName = function(Event)
+{
+	const Name = Array_GetKey(MidiEvents,Event);
+	return Name;
+}
 
 function SliceString(Array,Start,Length)
 {
@@ -108,15 +130,34 @@ Pop.Midi = {};
 Pop.Midi.Parse = function (FileContents)
 {
 	const Midi = {};
-	Midi.TimeToMs = null;
+	Midi.TicksToMs = null;	//	func
 	Midi.Tracks = null;
 	Midi.Format = null;
+	Midi.DurationMs = 0;
 
 	function Parse_MTrk(Data)
 	{
 		//	add to next undefined track
 		const NextTrack = Midi.Tracks.indexOf(null);
-		Midi.Tracks[NextTrack] = Data;
+		const NewTrack = {};
+		Midi.Tracks[NextTrack] = NewTrack;
+		
+		NewTrack.Notes = [];
+
+		function GetLastNote(Note,Channel)
+		{
+			for ( let i=NewTrack.Notes.length-1;	i>=0;	i-- )
+			{
+				const NoteMeta = NewTrack.Notes[i];
+				if ( NoteMeta.Channel != Channel )
+					continue;
+				if ( NoteMeta.Note != Note )
+					continue;
+				return NoteMeta;
+			}
+			throw `No last note (${Note},${Channel}) found`;
+		}
+		
 		//Pop.Debug(`NextTrack = ${NextTrack}`);
 
 		let DataPosition = 0;
@@ -137,6 +178,14 @@ Pop.Midi.Parse = function (FileContents)
 			const Value = Peek8();
 			DataPosition++;
 			return Value;
+		}
+		
+		function Pop14()
+		{
+			const Lsb7 = Pop8() & 127;
+			const Msb7 = Pop8() & 127;
+			const Fourteen = (Msb7<<7) | (Lsb<<0);
+			return Fourteen;
 		}
 
 		function PopVariableLengthValue()
@@ -164,30 +213,80 @@ Pop.Midi.Parse = function (FileContents)
 			DataPosition += Length;
 			return Data;
 		}
-
-		function ParseMidiEvent(StatusAndChannel)
+		
+		function PushNoteOn(Channel,TimeMs,Note,Velocity)
 		{
-			const Status = (StatusAndChannel & 0b11110000) >> 4;
-			const Channel = StatusAndChannel & 0b00001111;
-			const EventControllerMessage = Pop8();
-
-			let StatusMessage = Object.keys(StatusMessages).find(k => StatusMessages[k] === Status);
-			if (!StatusMessage)
-				StatusMessage = Status.toString(16);
-
-			//StatusMessages.ProgramChange
-
-			let Message = Object.keys(MidiControllerMessages).find(k => MidiControllerMessages[k] === EventControllerMessage);
-
-			//MidiControllerMessages.entries().filter()
-			//let Message = MidiControllerMessages[EventControllerMessage];
-			Message = Message ? Message + ' ' : '';
-			Message += '#'+EventControllerMessage;
+			const Meta = {};
+			Meta.Note = GetNoteName(Note);
+			Meta.Channel = Channel;
+			Meta.StartTimeMs = TimeMs;
+			Meta.EndTimeMs = null;
+			Meta.Velocity = Velocity;
+			Pop.Debug(`Note on: ${JSON.stringify(Meta)}`);
+			NewTrack.Notes.push(Meta);
+			Midi.DurationMs = Math.max( Midi.DurationMs, Meta.StartTimeMs );
+		}
+		
+		function PushNoteOff(Channel,TimeMs,Note,Velocity)
+		{
+			Note = GetNoteName(Note);
+			Pop.Debug(`Note off @${TimeMs}: ${Note} vel=${Velocity}`);
+			//	get the last matching note and end it
+			const Meta = GetLastNote(Note,Channel);
+			Meta.EndTimeMs = TimeMs;
+			Meta.EndVelocity = Velocity;
+		}
+		
+		function PushPolyKeyPressure(Channel,TimeMs,Note,Velocity)
+		{
+			Note = GetNoteName(Note);
+			Pop.Debug(`PolyKeyPressure @${TimeMs}: ${Note} x${Velocity}`);
+		}
+		
+		function PushControlChange(Channel,TimeMs,Control,Value)
+		{
+			Pop.Debug(`Control/Channel mode @${TimeMs} ${Control}=${Value}`);
+		}
+		
+		function PushProgramChange(Channel,TimeMs,ProgramNumber)
+		{
+			Pop.Debug(`Program change @${TimeMs} ${ProgramNumber}`);
+		}
+		
+		function PushChannelPressure(Channel,TimeMs,PressureValue)
+		{
+			Pop.Debug(`Channel pressure @${TimeMs} ${PressureValue}`);
+		}
+		
+		function PushPitchBendChange(Channel,TimeMs,Change)
+		{
+			Pop.Debug(`Pitch bend @${TimeMs} ${Change}`);
+		}
+		
+		
+		function ParseMidiEvent(MidiEventAndChannel,TimeMs)
+		{
+			const MidiEvent = (MidiEventAndChannel & 0b11110000) >> 4;
+			const Channel = MidiEventAndChannel & 0b00001111;
+			const MidiEventName = MidiEvents.GetName(MidiEvent) || MidiEvent.toString(16);
 			
-			let Event3 = MidiControllerMessageHasThirdByte(EventControllerMessage) ? Pop8() : null;
-			if (Event3 !== null)
-				Event3 = Event3.toString(16);
-			Pop.Debug(`Midi event: ${Message} Channel[${Channel}] Status=${StatusMessage} ${Event3}`);
+			const Next8 = Peek8();
+			//Pop.Debug(`Midi event: ${MidiEventName} Channel[${Channel}] Next=${Next8}`);
+
+			//	http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html#BMA1_
+			switch(MidiEvent)
+			{
+				case MidiEvents.NoteOn:				PushNoteOn(Channel,TimeMs,Pop8(),Pop8());	break;
+				case MidiEvents.NoteOff:			PushNoteOff(Channel,TimeMs,Pop8(),Pop8());	break;
+				case MidiEvents.PolyKeyPressure:	PushPolyKeyPressure(Channel,TimeMs,Pop8(),Pop8());	break;
+				case MidiEvents.ControlChange:		PushControlChange(Channel,TimeMs,Pop8(),Pop8());	break;
+				case MidiEvents.ProgramChange:		PushProgramChange(Channel,TimeMs,Pop8());	break;
+				case MidiEvents.ChannelPressure:	PushChannelPressure(Channel,TimeMs,Pop8());	break;
+				case MidiEvents.PitchBendChange:	PushPitchBendChange(Channel,TimeMs,Pop14());	break;
+				default:
+					Pop.Debug(`Midi event: ${MidiEventName} Channel[${Channel}] Next=${Next8}`);
+					throw `Undhandled Midi event ${MidiEventName}`;
+			}
 		}
 
 		function ParseSystemEvent(Event)
@@ -212,7 +311,7 @@ Pop.Midi.Parse = function (FileContents)
 			const EventData = PopData(Length);
 		}
 
-		function ParseEvent(Event)
+		function ParseEvent(Event,TimeMs)
 		{
 			const SystemEvent = 0xf0;
 			const EscapeEvent = 0xf7;
@@ -225,23 +324,21 @@ Pop.Midi.Parse = function (FileContents)
 				case MetaEvent:
 					return ParseMetaEvent();
 				default:
-					return ParseMidiEvent(Event);
+					return ParseMidiEvent(Event,TimeMs);
 			}
 		}
 
 		//	parse the data
-		let Time = 0;
-		while(true)
+		let TimeTicks = 0;
 		while (Peek8()!==null)
 		{
-			const Next = Peek8();
-			//Pop.Debug(`Next= ${Next}`);
-			
-			const TimeSinceLast = PopVariableLengthValue();
+			//Pop.Debug(`Next= ${Peek8()}`);
+			const TicksSinceLast = PopVariableLengthValue();
+			TimeTicks += TicksSinceLast;
+			const TimeMs = Midi.TicksToMs(TimeTicks);
 			const Event = Pop8();
-			//Pop.Debug(`Next= ${Next} Event=${Event} Time=${TimeSinceLast} DataPos ${DataPosition}/${Data.length}`);
-			Pop.Debug(`Event=${Event} Time=${TimeSinceLast} DataPos ${DataPosition}/${Data.length}`);
-			ParseEvent(Event);
+			//Pop.Debug(`Event=${Event} Time=${TimeMs}(+${TicksSinceLast} ticks) DataPos ${DataPosition}/${Data.length}`);
+			ParseEvent(Event,TimeMs);
 		}
 
 	}
@@ -250,8 +347,30 @@ Pop.Midi.Parse = function (FileContents)
 	{
 		Midi.Format = Slice16(Data,0);
 		const TrackCount = Slice16(Data,2);
-		Midi.TimeToMs = Slice16(Data,4);
+		const TimeFormat16 = Slice16(Data,4);
 		Midi.Tracks = Array(TrackCount).fill(null);
+
+		const TimeFormatSmpte = (TimeFormat16>>15) != 0;
+		if ( TimeFormatSmpte )
+		{
+			Midi.TicksToMs = function(Ticks)
+			{
+				//	TimeFormat16 = ticks per quarter-note
+				return Ticks;
+			}
+		}
+		else
+		{
+			Midi.TicksToMs = function(Ticks)
+			{
+				const NegativeSmpte = (TimeFormat16 >> 7) & (127);	//	bits 8-14
+				const TicksPerFrame = TimeFormat16 & 127;	//	bits 0-7
+				//	negative SMPTE format	ticks per frame
+				return Ticks;
+			}
+		}
+
+		
 		Pop.Debug(`Midi: ${JSON.stringify(Midi)}`);
 	}
 
@@ -287,10 +406,68 @@ Pop.Midi.Parse = function (FileContents)
 		EnumAtom( Atom.Fourcc, AtomData );
 		i += Atom.AtomSize;
 	}
+	
+	return Midi;
 }
 
 //	https://wiki.ccarh.org/wiki/MIDI_file_parsing_homework for testing parsing
 const MidiFilename = 'Test.mid';
 //const MidiFilename = 'Twinkle.mid';
 const MidiContents = Pop.LoadFileAsArrayBuffer(MidiFilename);
-Pop.Midi.Parse(MidiContents);
+
+
+const Midi = Pop.Midi.Parse(MidiContents);
+Pop.Debug(`Midi: ${Midi}`);
+
+function MakeMidiMapImage(Midi)
+{
+	const NoteNames = GetNoteNames();
+	const Rows = Midi.Tracks.length * NoteNames.length;
+	
+	const MsPerPixel = 500;
+	const Columns = Math.ceil(Midi.DurationMs / MsPerPixel);
+	
+	const FormatChannels = 3;
+	const Pixels = new Uint8Array( Columns * Rows * FormatChannels );
+	function Write(x,y,Channel)
+	{
+		let pi = (y*Columns) + x;
+		pi *= FormatChannels;
+		const ChannelColours = [ [1,0,0],[1,1,0],[0,1,0],[0,1,1],[0,0,1],[1,0,1]];
+		const Rgb = ChannelColours[Channel];
+		Pixels[pi+0] = Rgb[0];
+		Pixels[pi+1] = Rgb[1];
+		Pixels[pi+2] = Rgb[2];
+	}
+	
+	function DrawTrack(Track,TrackIndex)
+	{
+		function DrawNote(Note)
+		{
+			Pop.Debug(`Draw Note ${Note}`);
+			const NoteIndex = NoteNames.indexOf(Note.Note);
+			const y = (TrackIndex * NoteNames.length) + NoteIndex;
+			const sx = Math.floor(Note.StartTimeMs/MsPerPixel);
+			const ex = Math.max(sx+1, Math.floor(Note.EndTimeMs/MsPerPixel));
+			for ( let x=sx;	x<=ex;	x++ )
+				Write(x,y,Note.Channel);
+		}
+		Track.Notes.forEach(DrawNote);
+	}
+	Midi.Tracks.forEach(DrawTrack);
+
+	const PixelImage = new Pop.Image();
+	const Format = 'RGB';
+	PixelImage.WritePixels( Columns, Rows, Pixels, Format );
+	return PixelImage;
+}
+
+
+//	now make a window & draw the sequence
+const Window = new Pop.Gui.Window("I love midi!");
+
+const MidiImage = MakeMidiMapImage(Midi);
+const Scale = 10;
+const ImageMap = new Pop.Gui.ImageMap(Window,[0,0,MidiImage.GetWidth()*Scale,MidiImage.GetHeight()*Scale]);
+ImageMap.SetImage(MidiImage);
+
