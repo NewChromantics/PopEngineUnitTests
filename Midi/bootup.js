@@ -424,7 +424,7 @@ function MakeMidiMapImage(Midi)
 	const NoteNames = GetNoteNames();
 	const Rows = Midi.Tracks.length * NoteNames.length;
 	
-	const MsPerPixel = 500;
+	const MsPerPixel = 2;
 	const Columns = Math.ceil(Midi.DurationMs / MsPerPixel);
 	
 	const FormatChannels = 3;
@@ -435,20 +435,20 @@ function MakeMidiMapImage(Midi)
 		pi *= FormatChannels;
 		const ChannelColours = [ [1,0,0],[1,1,0],[0,1,0],[0,1,1],[0,0,1],[1,0,1]];
 		const Rgb = ChannelColours[Channel];
-		Pixels[pi+0] = Rgb[0];
-		Pixels[pi+1] = Rgb[1];
-		Pixels[pi+2] = Rgb[2];
+		Pixels[pi+0] = Rgb[0] * 255;
+		Pixels[pi+1] = Rgb[1] * 255;
+		Pixels[pi+2] = Rgb[2] * 255;
 	}
 	
 	function DrawTrack(Track,TrackIndex)
 	{
 		function DrawNote(Note)
 		{
-			Pop.Debug(`Draw Note ${Note}`);
 			const NoteIndex = NoteNames.indexOf(Note.Note);
 			const y = (TrackIndex * NoteNames.length) + NoteIndex;
 			const sx = Math.floor(Note.StartTimeMs/MsPerPixel);
 			const ex = Math.max(sx+1, Math.floor(Note.EndTimeMs/MsPerPixel));
+			Pop.Debug(`Draw Note ${Note} ${sx},${ex},${y} ${Rows},${Columns}`);
 			for ( let x=sx;	x<=ex;	x++ )
 				Write(x,y,Note.Channel);
 		}
@@ -467,7 +467,7 @@ function MakeMidiMapImage(Midi)
 const Window = new Pop.Gui.Window("I love midi!");
 
 const MidiImage = MakeMidiMapImage(Midi);
-const Scale = 10;
+const Scale = 3;
 const ImageMap = new Pop.Gui.ImageMap(Window,[0,0,MidiImage.GetWidth()*Scale,MidiImage.GetHeight()*Scale]);
 ImageMap.SetImage(MidiImage);
 
