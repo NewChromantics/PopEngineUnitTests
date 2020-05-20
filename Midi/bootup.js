@@ -429,6 +429,7 @@ function MakeMidiMapImage(Midi)
 	
 	const FormatChannels = 3;
 	const Pixels = new Uint8Array( Columns * Rows * FormatChannels );
+	Pixels.fill(255);
 	function Write(x,y,Channel)
 	{
 		let pi = (y*Columns) + x;
