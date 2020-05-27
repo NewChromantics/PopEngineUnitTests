@@ -61,7 +61,7 @@ Pop.Include = function (Filename)
 let EngineDebug;
 try
 {
-	EngineDebug = new Pop.Engine.StatsWindow( Ios ? Ios.StatsLabel : undefined );
+	//EngineDebug = new Pop.Engine.StatsWindow( Ios ? Ios.StatsLabel : undefined );
 }
 catch(e)
 {
@@ -79,50 +79,89 @@ Pop.Include('../PopEngineCommon/PopH264.js');
 
 
 let VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
-let Uvy844FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
-let Yuv8_88FragShader = Pop.LoadFileAsString('Yuv8_88.frag.glsl');
-let Yuv8_8_8FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
-let Yuv888FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
-let Yuv8_8_8_OneImageFragShader = Pop.LoadFileAsString('Yuv8_8_8_OneImage.frag.glsl');
-let DepthmmFragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
-let BlitFragShader = Pop.LoadFileAsString('Blit.frag.glsl');
-let UyvyFragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let Uvy844_FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
+let Yuv8_88_OneImage_FragShader = Pop.LoadFileAsString('Yuv8_88_OneImage.frag.glsl');
+let Yuv8_88_TwoImage_FragShader = Pop.LoadFileAsString('Yuv8_88_TwoImage.frag.glsl');
+let Yuv8_8_8_FragShader = Pop.LoadFileAsString('Yuv8_8_8.frag.glsl');
+let Yuv888_FragShader = Pop.LoadFileAsString('Yuv8888.frag.glsl');
+let Yuv8_8_8_OneImage_FragShader = Pop.LoadFileAsString('Yuv8_8_8_OneImage.frag.glsl');
+let Depthmm_FragShader = Pop.LoadFileAsString('Depthmm.frag.glsl');
+let Blit_FragShader = Pop.LoadFileAsString('Blit.frag.glsl');
+let Uyvy_FragShader = Pop.LoadFileAsString('Uvy844.frag.glsl');
 
 //let GetChromaUvy844Shader = Pop.LoadFileAsString('GetChroma_Uvy844.frag.glsl');
 const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 
+const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
 Params.DepthMax = 4000;
-Params.Compression = 1;
-Params.ChromaRanges = 6;
+Params.ChromaRanges = 6*6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
 Params.UdpHost = '192.168.0.11';
-Params.UdpHost = '127.0.0.1';
+//Params.UdpHost = '127.0.0.1';
 Params.UdpPort = 1234;
-Params.TcpHost = '127.0.0.1';
+Params.TcpHost = '192.168.0.11';
+//Params.TcpHost = '127.0.0.1';
 Params.TcpPort = 1235;
-Params.EnableDecoding = false;
-Params.EnableDecodingOnlyKeyframes = false;
+Params.EnableDecoding = true;
+Params.EnableDecodingOnlyKeyframes = true;
+Params.KeyframeEveryNFrames = 999;
+Params.ShowRawYuv = false;
+Params.TestDepthToYuv8_88 = true;
+Params.RecordH264ToFile = false;
+
+
+Params.Encode_Quality = 1;
+Params.Encode_AverageKbps = 900;
+Params.Encode_MaxKbps = 0;
+Params.Encode_Realtime = true;
+Params.Encode_MaximisePowerEfficiency = true;
+Params.Encode_MaxSliceBytes = 0;
+Params.Encode_MaxFrameBuffers = 0;
+Params.Encode_ProfileLevel = 32;
+
+Params.Encode_EncoderThreads = 5;
+Params.Encode_LookaheadThreads = 5;
+Params.Encode_BSlicedThreads = 5;
+Params.Encode_VerboseDebug = true;
+Params.Encode_Deterministic = false;
+Params.Encode_CpuOptimisations = true;
+
+
 
 let ParamsWindow;
+function OnParamsChanged(Params,Key)
+{
+	Pop.Debug(`${Key} changed`);
+}
 try
 {
-	ParamsWindow = new Pop.ParamsWindow(Params);
+	ParamsWindow = new Pop.ParamsWindow(Params,OnParamsChanged);
 	ParamsWindow.AddParam('DepthMin',0,65500);
 	ParamsWindow.AddParam('DepthMax',0,65500);
-	ParamsWindow.AddParam('Compression',0,9,Math.floor);
 	ParamsWindow.AddParam('ChromaRanges',1,256,Math.floor);
 	ParamsWindow.AddParam('DepthSquared');
 	ParamsWindow.AddParam('PingPongLuma');
-	ParamsWindow.AddParam('PingPongLuma');
 	ParamsWindow.AddParam('WebsocketPort',80,9999,Math.floor);
-    ParamsWindow.AddParam('UdpHost');
-    ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
+	ParamsWindow.AddParam('UdpHost');
+	ParamsWindow.AddParam('UdpPort',80,9999,Math.floor);
 	ParamsWindow.AddParam('EnableDecoding');
 	ParamsWindow.AddParam('EnableDecodingOnlyKeyframes');
+	ParamsWindow.AddParam('KeyframeEveryNFrames',1,1000,Math.floor);
+	ParamsWindow.AddParam('ShowRawYuv');
+	ParamsWindow.AddParam('TestDepthToYuv8_88');
+	ParamsWindow.AddParam('RecordH264ToFile');
+	
+	
+	ParamsWindow.AddParam('Encode_Quality',0,9,Math.floor);
+	ParamsWindow.AddParam('Encode_AverageKbps',0,5000,Math.floor);
+	ParamsWindow.AddParam('Encode_Realtime');
+	ParamsWindow.AddParam('Encode_MaximisePowerEfficiency');
+	ParamsWindow.AddParam('Encode_MaxFrameBuffers',0,20,Math.floor);
+	ParamsWindow.AddParam('Encode_MaxSliceBytes',0,1024,Math.floor);
 	
 }
 catch(e)
@@ -132,6 +171,47 @@ catch(e)
 	ParamsWindow = {};
 	ParamsWindow.AddParam = function(){};
 }
+
+function GetEncoderParams()
+{
+	const EncoderKeys = Object.keys(Params).filter( Key => Key.startsWith(EncoderParamPrefix) );
+	const EncoderParams = {};
+	function SetParam(ParamName)
+	{
+		const EncoderKeyName = ParamName.substring(EncoderParamPrefix.length);
+		EncoderParams[EncoderKeyName] = Params[ParamName];
+	}
+	EncoderKeys.forEach(SetParam);
+	return EncoderParams;
+}
+
+
+let RecordH264Filename = null;
+function GetRecordH264Filename(CameraName)
+{
+	if ( !RecordH264Filename )
+	{
+		RecordH264Filename = CameraName;
+
+		const Now = Date.now();
+		/* now is just a timestamp in javascript core
+		const y = Now.getFullYear();
+		const m = Now.getMonth();
+		const d = Now.getDate();
+		const h = Now.getHours();
+		const n = Now.getMinutes();
+		RecordH264Filename += `${y}-${m}-${d}-${h}-${n}`;*/
+		RecordH264Filename += '_' + Now;
+		RecordH264Filename += '.h264';
+		
+		//	todo: API should do friendly filename fixer
+		RecordH264Filename = RecordH264Filename.replace(':','_');
+		//Pop.ShowFileInFinder(RecordH264Filename);
+		Pop.Debug("Recording to "+RecordH264Filename);
+	}
+	return RecordH264Filename;
+}
+
 
 
 let FrameQueue = [];
@@ -165,7 +245,7 @@ function OnNewPeer(Peer,Server)
 	CriticalFrames.forEach(SendFrame);
 }
 
-function QueueFrame(Data,Meta,Keyframe)
+function QueueFrame(Data,Meta,Keyframe,CameraName)
 {
 	const FramePacket = {};
 	FramePacket.Meta = Meta;
@@ -173,6 +253,15 @@ function QueueFrame(Data,Meta,Keyframe)
 	FramePacket.Keyframe = Keyframe;
 	FrameQueue.push(FramePacket);
 
+	if ( Params.RecordH264ToFile )
+	{
+		//	gr: do we want something more sophisticated for streaming?
+		//		buffer up? do it in the api? keep a file handle open?
+		const Filename = GetRecordH264Filename(CameraName);
+		const Append = true;
+		Pop.WriteToFile( Filename, FramePacket.Data, Append );
+	}
+	
 	const Type = Pop.H264.GetNaluType(Data);
 	//Pop.Debug(`QueueFrame Type=${Type} Keyframe=${Keyframe}`);
 	if ( Type == Pop.H264.SPS )	LastSpsPackets.push(FramePacket);
@@ -401,6 +490,9 @@ async function TcpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 
 function GetUvRanges(RangeCount)
 {
+	if (RangeCount <= 1)
+		return [0.5,0.5];
+
 	//	build a unique-uv table with a total of RangeCount
 	let RangeX = Math.sqrt(RangeCount);
 	RangeX = Math.ceil(RangeX);
@@ -789,6 +881,21 @@ function GetH264Pixels(OrigPlanes)
 
 	const Ranges = GetUvRanges(Params.ChromaRanges);
 
+
+	if (Params.TestDepthToYuv8_88)
+	{
+		const Yuv = Pop.Opencv.TestDepthToYuv8_88(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		return Yuv;
+	}
+
+	//if (Params.TestDepthToYuv8_8_8)
+	{
+		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		return Yuv_8_8_8;
+	}
+
+
+	
 	let Yuv_8_8_8;
 	//const Funcs = { Dll: Depth16ToYuv_Dll,Wasm: Depth16ToYuv_Wasm,Js: Depth16ToYuv_Js };
 	const Funcs = { Js: Depth16ToYuv_Js };
@@ -812,6 +919,53 @@ function GetH264Pixels(OrigPlanes)
 	return YuvImage;
 }
 
+function GetShaderForTextures(Textures)
+{
+	const Format0 = Textures[0].GetFormat();
+	//Pop.Debug(`Format=${Format0} x${Textures.length}`);
+	switch(Format0)
+	{
+		//	special cases
+		case "Luma_Ntsc":
+		case "Greyscale":
+			if ( Textures.length == 3)
+				return Yuv8_8_8_FragShader;
+			if ( Textures.length == 2)
+				return Yuv8_88_TwoImage_FragShader;
+			return Blit_FragShader;
+
+		case "Yuv_8_8_8_Full":
+		case "Yuv_8_8_8_Ntsc":
+			if (Textures.length == 1)
+				return Yuv8_8_8_OneImage_FragShader;
+			return Blit_FragShader;
+
+		case "Yuv_8_88_Full":
+		case "Yuv_8_88_Ntsc":
+			if (Textures.length == 1)
+				return Yuv8_88_OneImage_FragShader;
+			return Yuv8_88_FragShader;
+
+		case "YYuv_8888_Full":	return Yuv8888_FragShader;
+		case "YYuv_8888_Ntsc":	return Yuv8888_FragShader;
+		case "Yuv_8_8_8_Full":	return Yuv8888_FragShader;
+		case "Yuv_8_8_8_Ntsc":	return Yuv8888_FragShader;
+		case "Uvy_844_Full":	return Uvy844_FragShader;
+		case "Yuv_844_Full":	return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
+		case "RGBA":			return Blit_FragShader;
+		case "KinectDepth":		return Depthmm_FragShader;
+		case "Depth16mm":		return Depthmm_FragShader;
+		case "uyvy":			return Uyvy_FragShader;
+	
+		default:break;
+	}
+	
+	let Formats = [];
+	Textures.forEach(t => Formats.push(t.GetFormat()));
+	Pop.Debug("No specific shader for " + Formats.join(','));
+	return Blit_FragShader;
+}
+
 function RenderImage(RenderTarget,Textures,Rect)
 {
 	if (!Textures)
@@ -832,42 +986,9 @@ function RenderImage(RenderTarget,Textures,Rect)
 	if (!Texture1) Texture1 = BlackTexture;
 	if (!Texture2) Texture2 = BlackTexture;
 
-
 	//Pop.Debug("Texture0.GetFormat()=",Texture0.GetFormat(),"x",this.Textures.length);
-	let ShaderSource = BlitFragShader;
-
-	if (Texture0.GetFormat() == "YYuv_8888_Full")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "YYuv_8888_Ntsc")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "Uvy_844_Full")
-		ShaderSource = Uvy844FragShader;
-	else if (Texture0.GetFormat() == "Greyscale" && Textures.length == 3)
-		ShaderSource = Yuv8_8_8FragShader;
-	else if (Texture0.GetFormat() == "RGBA")
-		ShaderSource = BlitFragShader;
-	else if (Texture0.GetFormat() == "Greyscale")
-		ShaderSource = BlitFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full" && Textures.length == 1)
-		ShaderSource = Yuv8_8_8_OneImageFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc" && Textures.length == 1)
-		ShaderSource = Yuv8_8_8_OneImageFragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Full")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "Yuv_8_8_8_Ntsc")
-		ShaderSource = Yuv8888FragShader;
-	else if (Texture0.GetFormat() == "KinectDepth")
-		ShaderSource = DepthmmFragShader;
-	else if (Texture0.GetFormat() == "Depth16mm")
-		ShaderSource = DepthmmFragShader;
-	else if (Texture0.GetFormat() == "uyvy")
-		ShaderSource = UyvyFragShader;
-	else
-	{
-		let Formats = [];
-		this.Textures.forEach(t => Formats.push(t.GetFormat()));
-		Pop.Debug("No specific shader for " + Formats.join(','));
-	}
+	let ShaderSource = GetShaderForTextures(Textures);
+	
 
 	let FragShader = Pop.GetShader(RenderTarget,ShaderSource,VertShader);
 
@@ -892,11 +1013,12 @@ function RenderImage(RenderTarget,Textures,Rect)
 
 function TCameraWindow(CameraName)
 {
+	this.CameraName = CameraName;
 	this.VideoTextures = [];
 	this.EncodedTextures = [];
 	this.DecodedTextures = [];
 	this.CameraFrameCounter = new Pop.FrameCounter(CameraName);
-	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264");
+	this.EncodedH264Counter = new Pop.FrameCounter(CameraName + " h264 packets");
 	this.EncodedH264KbCounter = new Pop.FrameCounter(CameraName + " h264 kb");
 	this.DecodedH264Counter = new Pop.FrameCounter(CameraName + " H264 Decoded");
 
@@ -916,7 +1038,7 @@ function TCameraWindow(CameraName)
 			const Frame = await this.Decoder.WaitForNextFrame();
 			this.DecodedTextures = Frame.Planes;
 			this.DecodedH264Counter.Add();
-			Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
+			//Pop.Debug("Decoded h264 frame",JSON.stringify(Frame));
 		}
 	}
 
@@ -945,15 +1067,16 @@ function TCameraWindow(CameraName)
 			}
 			//Pop.Debug(`Got packet x${Packet.Data.length}`,Packet.Data.slice(0,10));
 			this.EncodedH264KbCounter.Add(Packet.Data.length/1024);
-			this.EncodedH264Counter.Add();
+			//this.EncodedH264Counter.Add();	not important
 
 			const Meta = {};
 			Meta.Time = Packet.Time;
+			const H264Meta = Pop.H264.GetNaluMeta(Packet.Data);
 			const IsKeyframe = Pop.H264.IsKeyframe(Packet.Data);
-
+			
 			//	send out packet
-			//Pop.Debug("H264 packet is keyframe;",IsKeyframe,"x" + Packet.Data.length);
-			QueueFrame(Packet.Data,Meta,IsKeyframe);
+			//Pop.Debug(`H264 packet IsKeyframe=${IsKeyframe} x${Packet.Data.length}bytes Meta=${JSON.stringify(H264Meta)}`);
+			QueueFrame(Packet.Data,Meta,IsKeyframe,this.CameraName);
 
 			//	queue for re-decode for testing
 			if (this.Decoder)
@@ -963,13 +1086,13 @@ function TCameraWindow(CameraName)
 				if (Decode && Params.EnableDecoding)
 				{
 					//	attempt to emulate udp
-					const PacketMaxSize = 1000;
+					const PacketMaxSize = 991000;
 					for ( let i=0;	i<Packet.Data.length;	i+=PacketMaxSize )
 					{
 						const Start = i;
 						const End = Math.min( Start + PacketMaxSize, Packet.Data.length );
 						const Chunk = Packet.Data.slice( Start, End );
-						this.Decoder.Decode(Packet.Data);
+						this.Decoder.Decode(Chunk);
 					}
 					//Pop.Debug("Decode h264 packet...");
 					//this.Decoder.Decode(Packet.Data);
@@ -980,6 +1103,8 @@ function TCameraWindow(CameraName)
 
 	this.ListenForFrames = async function ()
 	{
+		//	initial pause to let window thread start
+		await Pop.Yield(2000);
 		while (true)
 		{
 			try
@@ -994,21 +1119,30 @@ function TCameraWindow(CameraName)
 				const Time = NewFrame.Time ? NewFrame.Time : Pop.GetTimeNowMs();
 
 				//	remake encoder if compression changes
-				if (this.EncoderCompression != Params.Compression)
+				if ( JSON.stringify(this.EncoderParams) != JSON.stringify(GetEncoderParams()) )
 					this.Encoder = null;
 
 				if (!this.Encoder)
 				{
-					Pop.Debug("New encoder",Params.Compression);
-					this.Encoder = new Pop.Media.H264Encoder(Params.Compression);
-					this.EncoderCompression = Params.Compression;
+					const EncoderParams = GetEncoderParams();
+					Pop.Debug("New encoder",EncoderParams);
+					this.Encoder = new Pop.Media.H264Encoder(EncoderParams);
+					this.EncoderParams = EncoderParams;
+					this.Encoder.FrameCount = 0;
 				}
 
 				const EncodedTexture = GetH264Pixels(this.VideoTextures);
 				if ( EncodedTexture )
 				{
+					this.Encoder.FrameCount++;
+					const EncodeKeyframe = (this.Encoder.FrameCount % Params.KeyframeEveryNFrames) == 0;
+					
+					const EncodeOptions = {};
+					EncodeOptions.Time = Time;
+					EncodeOptions.Keyframe = EncodeKeyframe;
+					//EncodedTexture.Clip([0,0,640,480]);
 					this.EncodedTextures = [EncodedTexture];
-					this.Encoder.Encode(EncodedTexture,Time);
+					this.Encoder.Encode(EncodedTexture,EncodeOptions);
 				}
 				
 			}
@@ -1039,8 +1173,7 @@ function TCameraWindow(CameraName)
 	const Format = "Depth16";
 	//const Format = "Yuv_8_88_Ntsc_Depth16";
 	//const Format = "Yuv_8_44_Ntsc_Depth16";
-	//	make this a callback!
-	this.EncoderCompression = Params.Compression;
+	this.EncoderParams = null;	//	used to catch changes in params, switch to a callback!
 	this.Encoder = null;
 	this.Source = new Pop.Media.Source(CameraName,Format,LatestOnly);
 	this.Decoder = new Pop.Media.AvcDecoder();
@@ -1080,12 +1213,13 @@ async function FindCamerasLoop()
 	{
 		function IsKinectDevice(Device)
 		{
+			/*
 			//	testing
 			if ( Device.Serial.includes('Back') )
 				return true;
 			if ( Device.Serial.includes('FaceTime') )
 				return true;
-
+*/
 			if ( Device.Serial.includes('KinectAzure') )
 				return true;
 
@@ -1105,7 +1239,9 @@ async function FindCamerasLoop()
 			Pop.Debug("Pop.Media.EnumDevices found(" + JSON.stringify(Devices) + ") result type=" + (typeof Devices));
 			Devices = Devices.Devices.filter(IsKinectDevice);
 
-			Devices.forEach(CreateCamera);
+			//	gr: only create one
+			CreateCamera(Devices[0]);
+			//Devices.forEach(CreateCamera);
 
 			//	todo: EnumDevices needs to change to "OnDevicesChanged"
 			break;
@@ -1120,16 +1256,40 @@ async function FindCamerasLoop()
 
 Pop.Debug("Hello");
 
+
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
 const WebsocketPorts = [Params.WebsocketPort];
 //WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
-const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
+const UdpHosts = [['127.0.0.1',Params.UdpPort],[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 //	gr: wiuthout UDP this doesnt find the kinect!?
 //	gr: or if the TCP is running, it does. something blocks in TCP that should be async
 const TcpHosts = [[Params.TcpHost,Params.TcpPort]];
 //TcpClientSocketLoop(TcpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+/*
+
+
+let CurrentNumber = 0;
+async function SendNextNumberFrame(SendFunc)
+{
+	await Pop.Yield(10);
+	
+	//	make a buffer of shorts
+	let NumbersPerFrame = 10000;
+	let Shorts = new Uint16Array(NumbersPerFrame);
+	for ( let i=0;	i<NumbersPerFrame;	i++ )
+	{
+		let x = CurrentNumber++;
+		Shorts[i] = x;
+	}
+
+	SendFunc(new Uint8Array(Shorts.buffer,Shorts.byteOffset,Shorts.byteLength));
+}
+
+const UdpHosts = [[Params.UdpHost,Params.UdpPort]];
+UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextNumberFrame).then(Pop.Debug).catch(Pop.Debug);
+*/
