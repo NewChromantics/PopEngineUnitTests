@@ -42,11 +42,11 @@ function TCameraWindow(CameraName)
 		//Pop.Debug(Texture0.GetFormat());
 		let ShaderSource = BlitFragShader;
 		
-		if ( Texture0.GetFormat() == "YYuv_8888_Full" )
+		if ( Texture0.GetFormat() == "YYuv_8888" )
 			ShaderSource = Yuv8888FragShader;
-		else if ( Texture0.GetFormat() == "YYuv_8888_Ntsc" )
+		else if ( Texture0.GetFormat() == "YYuv_8888" )
 			ShaderSource = Yuv8888FragShader;
-		else if ( Texture0.GetFormat() == "Uvy_844_Full" )
+		else if ( Texture0.GetFormat() == "Uvy_844" )
 			ShaderSource = Uvy844FragShader;
 		else if ( Texture0.GetFormat() == "Greyscale" && this.Textures.length == 3 )
 			ShaderSource = Yuv8_8_8_MultiImageFragShader;
@@ -54,7 +54,7 @@ function TCameraWindow(CameraName)
 			ShaderSource = BlitFragShader;
 		else if (Texture0.GetFormat() == "Greyscale")
 			ShaderSource = BlitFragShader;
-		else if ( Texture0.GetFormat() == "Yuv_8_8_8_Full" )
+		else if ( Texture0.GetFormat() == "Yuv_8_8_8" )
 			ShaderSource = Yuv8_8_8FragShader;
 		else if ( Texture0.GetFormat() == "KinectDepth" )
 			ShaderSource = KinectDepthFragShader;

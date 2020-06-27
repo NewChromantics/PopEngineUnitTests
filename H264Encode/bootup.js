@@ -116,7 +116,7 @@ async function Run(Filename,EncodePreset)
 
 	const Yuv = new Pop.Image();
 	Yuv.Copy(Input);
-	Yuv.SetFormat('Yuv_8_8_8_Ntsc');
+	Yuv.SetFormat('Yuv_8_8_8');
 	YuvImage = Yuv;
 
 	//OutputImage = null;	//	clear for clarity, keep to help comparison

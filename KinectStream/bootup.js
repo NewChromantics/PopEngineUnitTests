@@ -836,7 +836,7 @@ function GetYuv_8_8_8(Planes)
 
 	let Luma = Planes[0];
 	//	much faster for testing
-	//Luma.SetFormat('Yuv_8_8_8_Ntsc');
+	//Luma.SetFormat('Yuv_8_8_8');
 	Luma.SetFormat('Greyscale');
 	return Luma;
 }
@@ -851,7 +851,7 @@ function GetTinyTestH264()
 	const YuvSize = (LumaWidth * LumaHeight) + ChromaSize + ChromaSize;
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
 	const YuvImage = new Pop.Image();
-	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8');
 	return YuvImage;
 }
 
@@ -914,7 +914,7 @@ function GetH264Pixels(OrigPlanes)
 	}
 
 	const YuvImage = new Pop.Image();
-	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8');
 	YuvImage.SetLinearFilter(false);
 	return YuvImage;
 }
@@ -926,7 +926,7 @@ function GetShaderForTextures(Textures)
 	switch(Format0)
 	{
 		//	special cases
-		case "Luma_Ntsc":
+		case "Luma":
 		case "Greyscale":
 			if ( Textures.length == 3)
 				return Yuv8_8_8_FragShader;
@@ -934,24 +934,20 @@ function GetShaderForTextures(Textures)
 				return Yuv8_88_TwoImage_FragShader;
 			return Blit_FragShader;
 
-		case "Yuv_8_8_8_Full":
-		case "Yuv_8_8_8_Ntsc":
+		case "Yuv_8_8_8":
 			if (Textures.length == 1)
 				return Yuv8_8_8_OneImage_FragShader;
 			return Blit_FragShader;
 
-		case "Yuv_8_88_Full":
-		case "Yuv_8_88_Ntsc":
+		case "Yuv_8_88":
 			if (Textures.length == 1)
 				return Yuv8_88_OneImage_FragShader;
 			return Yuv8_88_FragShader;
 
-		case "YYuv_8888_Full":	return Yuv8888_FragShader;
-		case "YYuv_8888_Ntsc":	return Yuv8888_FragShader;
-		case "Yuv_8_8_8_Full":	return Yuv8888_FragShader;
-		case "Yuv_8_8_8_Ntsc":	return Yuv8888_FragShader;
-		case "Uvy_844_Full":	return Uvy844_FragShader;
-		case "Yuv_844_Full":	return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
+		case "YYuv_8888":		return Yuv8888_FragShader;
+		case "Yuv_8_8_8":		return Yuv8888_FragShader;
+		case "Uvy_844":			return Uvy844_FragShader;
+		case "Yuv_844":			return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
 		case "RGBA":			return Blit_FragShader;
 		case "KinectDepth":		return Depthmm_FragShader;
 		case "Depth16mm":		return Depthmm_FragShader;
