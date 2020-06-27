@@ -22,23 +22,23 @@ if ( Pop.GetPlatform() == "Ios" )
 		Ios.Pop_Debug = Pop.Debug;
 		Ios.Debug = function()
 		{
-			//Ios.Pop_Debug(...arguments);
+			Ios.Pop_Debug(...arguments);
 			
 			const Log = Array.from(arguments).join(',');
 			Ios.DebugLogs.splice(0,0,Log);
-		const LogString = Ios.DebugLogs.slice(0,40).join('\n');
-		Ios.DebugLabel.SetValue(LogString);
-	}
+			const LogString = Ios.DebugLogs.slice(0,40).join('\n');
+			Ios.DebugLabel.SetValue(LogString);
+		}
 
-	//	replace Pop.Debug
-	Pop.Debug = Ios.Debug;
+		//	replace Pop.Debug
+		Pop.Debug = Ios.Debug;
 	
-	let SocketDebugs = [];
-	OnSocketReady = function(Name,Socket)
-	{
-		const Address = Socket ? Socket.GetAddress().map( a => a.Address ).join(',') : "";
-		const Debug = `Socket Ready: ${Name}@ ${Address}`;
-		Pop.Debug(Debug);
+		let SocketDebugs = [];
+		OnSocketReady = function(Name,Socket)
+		{
+			const Address = Socket ? Socket.GetAddress().map( a => a.Address ).join(',') : "";
+			const Debug = `Socket Ready: ${Name}@ ${Address}`;
+			Pop.Debug(Debug);
 			SocketDebugs.push(Debug);
 			Ios.ServerLabel.SetValue(SocketDebugs.join('\n'));
 		}
@@ -108,20 +108,19 @@ Params.TcpHost = '192.168.0.11';
 Params.TcpPort = 1235;
 Params.EnableDecoding = true;
 Params.EnableDecodingOnlyKeyframes = true;
-Params.KeyframeEveryNFrames = 999;
+Params.KeyframeEveryNFrames = 60;
 Params.ShowRawYuv = false;
-Params.TestDepthToYuv8_88 = true;
+Params.TestDepthToYuv8_88 = false;
 Params.RecordH264ToFile = false;
 
-
 Params.Encode_Quality = 1;
-Params.Encode_AverageKbps = 900;
+Params.Encode_AverageKbps = 4000;	//	putting this high gives us the odd -123xxx apple error
 Params.Encode_MaxKbps = 0;
 Params.Encode_Realtime = true;
-Params.Encode_MaximisePowerEfficiency = true;
+Params.Encode_MaximisePowerEfficiency = false;
 Params.Encode_MaxSliceBytes = 0;
 Params.Encode_MaxFrameBuffers = 0;
-Params.Encode_ProfileLevel = 32;
+Params.Encode_ProfileLevel = 0;
 
 Params.Encode_EncoderThreads = 5;
 Params.Encode_LookaheadThreads = 5;
@@ -371,7 +370,7 @@ async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 		async function Iteration(Host)
 		{
 			const Socket = new Pop.Socket.UdpClient(Host[0],Host[1]);
-			//Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
+			Pop.Debug("Opened UDP client",JSON.stringify(Socket.GetAddress()));
 			OnSocketReady("UdpClient",Socket);
 			OnSocketReady(`UdpClient connecting to ${Host[0]}:${Host[1]}`,null);
 			
@@ -836,7 +835,7 @@ function GetYuv_8_8_8(Planes)
 
 	let Luma = Planes[0];
 	//	much faster for testing
-	//Luma.SetFormat('Yuv_8_8_8_Ntsc');
+	//Luma.SetFormat('Yuv_8_8_8');
 	Luma.SetFormat('Greyscale');
 	return Luma;
 }
@@ -851,7 +850,7 @@ function GetTinyTestH264()
 	const YuvSize = (LumaWidth * LumaHeight) + ChromaSize + ChromaSize;
 	const Yuv_8_8_8 = new Uint8ClampedArray(YuvSize);
 	const YuvImage = new Pop.Image();
-	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.WritePixels(LumaWidth,LumaHeight,Yuv_8_8_8,'Yuv_8_8_8');
 	return YuvImage;
 }
 
@@ -863,8 +862,14 @@ function GetH264Pixels(OrigPlanes)
 	//	find the depth plane
 	function IsDepthPlane(Image,Index)
 	{
+		switch(Image.GetFormat())
+		{
+			case 'Depth16mm':
+			case 'DepthFloatMetres':
+				return true;
+		}
 		//Pop.Debug(`Depth plane ${Index} is ${Image.GetFormat()}`);
-		return Image.GetFormat() == 'Depth16mm';
+		return false;
 	}
 	let Planes = OrigPlanes.filter(IsDepthPlane);
 
@@ -878,9 +883,8 @@ function GetH264Pixels(OrigPlanes)
 	const DepthPixels = DepthPlane.GetPixelBuffer();
 	const DepthWidth = DepthPlane.GetWidth();
 	const DepthHeight = DepthPlane.GetHeight();
-
+	const DepthToMm = (DepthPlane.GetFormat()=='DepthFloatMetres') ? 1/1000 : 1;
 	const Ranges = GetUvRanges(Params.ChromaRanges);
-
 
 	if (Params.TestDepthToYuv8_88)
 	{
@@ -888,12 +892,13 @@ function GetH264Pixels(OrigPlanes)
 		return Yuv;
 	}
 
+	/*
 	//if (Params.TestDepthToYuv8_8_8)
 	{
 		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
 		return Yuv_8_8_8;
 	}
-
+*/
 
 	
 	let Yuv_8_8_8;
@@ -904,7 +909,7 @@ function GetH264Pixels(OrigPlanes)
 		const Func = Funcs[FuncName];
 		try
 		{
-			Yuv_8_8_8 = Func(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin,Params.DepthMax,Ranges);
+			Yuv_8_8_8 = Func(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin*DepthToMm,Params.DepthMax*DepthToMm,Ranges);
 			break;
 		}
 		catch (e)
@@ -914,7 +919,7 @@ function GetH264Pixels(OrigPlanes)
 	}
 
 	const YuvImage = new Pop.Image();
-	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8_Ntsc');
+	YuvImage.WritePixels(DepthWidth,DepthHeight,Yuv_8_8_8,'Yuv_8_8_8');
 	YuvImage.SetLinearFilter(false);
 	return YuvImage;
 }
@@ -926,7 +931,7 @@ function GetShaderForTextures(Textures)
 	switch(Format0)
 	{
 		//	special cases
-		case "Luma_Ntsc":
+		case "Luma":
 		case "Greyscale":
 			if ( Textures.length == 3)
 				return Yuv8_8_8_FragShader;
@@ -934,24 +939,20 @@ function GetShaderForTextures(Textures)
 				return Yuv8_88_TwoImage_FragShader;
 			return Blit_FragShader;
 
-		case "Yuv_8_8_8_Full":
-		case "Yuv_8_8_8_Ntsc":
+		case "Yuv_8_8_8":
 			if (Textures.length == 1)
 				return Yuv8_8_8_OneImage_FragShader;
 			return Blit_FragShader;
 
-		case "Yuv_8_88_Full":
-		case "Yuv_8_88_Ntsc":
+		case "Yuv_8_88":
 			if (Textures.length == 1)
 				return Yuv8_88_OneImage_FragShader;
 			return Yuv8_88_FragShader;
 
-		case "YYuv_8888_Full":	return Yuv8888_FragShader;
-		case "YYuv_8888_Ntsc":	return Yuv8888_FragShader;
-		case "Yuv_8_8_8_Full":	return Yuv8888_FragShader;
-		case "Yuv_8_8_8_Ntsc":	return Yuv8888_FragShader;
-		case "Uvy_844_Full":	return Uvy844_FragShader;
-		case "Yuv_844_Full":	return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
+		case "YYuv_8888":	return Yuv8888_FragShader;
+		case "Yuv_8_8_8":	return Yuv8888_FragShader;
+		case "Uvy_844":		return Uvy844_FragShader;
+		case "Yuv_844":		return Params.ShowRawYuv ? Blit_FragShader : Yuv844_FragShader;
 		case "RGBA":			return Blit_FragShader;
 		case "KinectDepth":		return Depthmm_FragShader;
 		case "Depth16mm":		return Depthmm_FragShader;
@@ -1170,7 +1171,8 @@ function TCameraWindow(CameraName)
 	}
 	
 	const LatestOnly = true;
-	const Format = "Depth16";
+	//const Format = "Depth16mm";
+	const Format = "DepthFloatMetres";	//	ios camera
 	//const Format = "Yuv_8_88_Ntsc_Depth16";
 	//const Format = "Yuv_8_44_Ntsc_Depth16";
 	this.EncoderParams = null;	//	used to catch changes in params, switch to a callback!
@@ -1237,9 +1239,11 @@ async function FindCamerasLoop()
 		{
 			let Devices = await Pop.Media.EnumDevices();
 			Pop.Debug("Pop.Media.EnumDevices found(" + JSON.stringify(Devices) + ") result type=" + (typeof Devices));
-			Devices = Devices.Devices.filter(IsKinectDevice);
-
+			//Devices = Devices.Devices.filter(IsKinectDevice);
+			Devices = Devices.Devices.filter( d => d.Serial == "Front TrueDepth Camera");
+			
 			//	gr: only create one
+			//CreateCamera("Front TrueDepth Camera");
 			CreateCamera(Devices[0]);
 			//Devices.forEach(CreateCamera);
 
@@ -1263,7 +1267,7 @@ FindCamerasLoop().catch(Pop.Debug);
 const WebsocketPorts = [Params.WebsocketPort];
 //WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
-const UdpHosts = [['127.0.0.1',Params.UdpPort],[Params.UdpHost,Params.UdpPort]];
+const UdpHosts = [/*['127.0.0.1',Params.UdpPort],*/[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 //	gr: wiuthout UDP this doesnt find the kinect!?
