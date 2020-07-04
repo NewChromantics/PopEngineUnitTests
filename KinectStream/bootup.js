@@ -361,7 +361,7 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 		try
 		{
 			Pop.Debug(`Starting portindex: ${PortIndex}`);
-			PortIndex = (PortIndex === null) ? 0 : PortIndex++;
+			PortIndex = (PortIndex === null) ? 0 : PortIndex+1;
 			Pop.Debug(`then portindex: ${PortIndex}`);
 			PortIndex = PortIndex % Ports.length;
 			Pop.Debug(`mod portindex: ${PortIndex}`);
@@ -428,7 +428,7 @@ async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 
 		try
 		{
-			HostIndex = (HostIndex === null) ? 0 : HostIndex++;
+			HostIndex = (HostIndex === null) ? 0 : HostIndex+1;
 			HostIndex = HostIndex % Hosts.length;
 			const Host = Hosts[HostIndex];
 			const IterationFinished = await Iteration(Host);
@@ -491,7 +491,7 @@ async function TcpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 
 		try
 		{
-			HostIndex = (HostIndex === null) ? 0 : HostIndex++;
+			HostIndex = (HostIndex === null) ? 0 : HostIndex+1;
 			HostIndex = HostIndex % Hosts.length;
 			const Host = Hosts[HostIndex];
 			const IterationFinished = await Iteration(Host);
