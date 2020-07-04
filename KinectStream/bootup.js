@@ -95,7 +95,7 @@ const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
-Params.DepthMax = 4000;
+Params.DepthMax = 1000;
 Params.ChromaRanges = 6*6;
 Params.PingPongLuma = true;
 Params.DepthSquared = true;
@@ -106,7 +106,7 @@ Params.UdpPort = 1234;
 Params.TcpHost = '192.168.0.11';
 //Params.TcpHost = '127.0.0.1';
 Params.TcpPort = 1235;
-Params.EnableDecoding = true;
+Params.EnableDecoding = false;
 Params.EnableDecodingOnlyKeyframes = true;
 Params.KeyframeEveryNFrames = 60;
 Params.ShowRawYuv = false;
@@ -114,10 +114,10 @@ Params.TestDepthToYuv8_88 = false;
 Params.RecordH264ToFile = false;
 
 Params.Encode_Quality = 1;
-Params.Encode_AverageKbps = 4000;	//	putting this high gives us the odd -123xxx apple error
+Params.Encode_AverageKbps = 6000;	//	putting this high gives us the odd -123xxx apple error
 Params.Encode_MaxKbps = 0;
 Params.Encode_Realtime = true;
-Params.Encode_MaximisePowerEfficiency = false;
+Params.Encode_MaximisePowerEfficiency = true;
 Params.Encode_MaxSliceBytes = 0;
 Params.Encode_MaxFrameBuffers = 0;
 Params.Encode_ProfileLevel = 0;
@@ -316,46 +316,64 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 
 	while (true)
 	{
-		PortIndex = (PortIndex === null) ? 0 : PortIndex++;
-		PortIndex = PortIndex % Ports.length;
-		const Port = Ports[PortIndex]
-		const Server = new Pop.Websocket.Server(Port);
-		OnSocketReady("WebsocketServer",Server);
-		//await Server.WaitForConnect();
-		while (true)
+		async function Iteration(Port)
 		{
-			//	wait for at least one peer
+			const Socket = new Pop.Websocket.Server(Port);
+			OnSocketReady("WebsocketServer",Socket);
+			//await Server.WaitForConnect();
+			while (true)
 			{
-				const Peers = Server.GetPeers();
-				if (Peers.length == 0)
+				//	wait for at least one peer
 				{
-					await Pop.Yield(500);
-					continue;
+					const Peers = Socket.GetPeers();
+					if (Peers.length == 0)
+					{
+						await Pop.Yield(500);
+						continue;
+					}
+
+					//	look for new peers
+					const NewPeers = Peers.filter(p => !ExistingPeers.includes(p));
+					NewPeers.forEach( p => OnNewPeer(p,Socket) );
+					ExistingPeers = Peers;
 				}
 
-				//	look for new peers
-				const NewPeers = Peers.filter(p => !ExistingPeers.includes(p));
-				NewPeers.forEach( p => OnNewPeer(p,Server) );
-				ExistingPeers = Peers;
-			}
-
-			function Send(Message)
-			{
-				const Peers = Server.GetPeers();
-				function SendToPeer(Peer)
+				function Send(Message)
 				{
-					try
+					const Peers = Socket.GetPeers();
+					function SendToPeer(Peer)
 					{
-						Server.Send(Peer,Message);
+						try
+						{
+							Socket.Send(Peer,Message);
+						}
+						catch (e)
+						{
+							Pop.Debug(`SendFrameToPeer(${Peer}) error; ${e}`);
+						}
 					}
-					catch (e)
-					{
-						Pop.Debug(`SendFrameToPeer(${Peer}) error; ${e}`);
-					}
+					Peers.forEach(SendToPeer);
 				}
-				Peers.forEach(SendToPeer);
+				await SendFrameFunc(Send);
 			}
-			await SendFrameFunc(Send);
+		}
+		
+		try
+		{
+			Pop.Debug(`Starting portindex: ${PortIndex}`);
+			PortIndex = (PortIndex === null) ? 0 : PortIndex++;
+			Pop.Debug(`then portindex: ${PortIndex}`);
+			PortIndex = PortIndex % Ports.length;
+			Pop.Debug(`mod portindex: ${PortIndex}`);
+			const Port = Ports[PortIndex];
+			Pop.Debug(`Opening websocket port ${Port} (${PortIndex} / ${Ports})`);
+			const IterationFinished = await Iteration(Port);
+			return IterationFinished;
+		}
+		catch (e)
+		{
+			Pop.Debug(`Websocket server error ${e}`);
+			await Pop.Yield(500);
 		}
 	}
 }
@@ -419,7 +437,7 @@ async function UdpClientSocketLoop(Hosts,OnNewPeer,SendFrameFunc)
 		catch (e)
 		{
 			Pop.Debug(`UDP socket error ${e}`);
-			await Pop.Yield(1000);
+			await Pop.Yield(500);
 		}
 	}
 }
@@ -739,6 +757,9 @@ function Depth16ToYuv_Dll(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,
 
 function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,UvRanges)
 {
+	//	gr: flip shouldn't be here!
+	const Flip = true;
+	
 	const DepthPixels = Depth16Plane;
 	const LumaWidth = DepthWidth;
 	const LumaHeight = DepthHeight;
@@ -779,7 +800,8 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,U
 		continue;
 		*/
 		const x = Math.floor(i % LumaWidth);
-		const y = Math.floor(i / LumaWidth);
+		let y = Math.floor(i / LumaWidth);
+		y = Flip ? (DepthHeight-1) - y : y;
 
 		//	write indexes one 1byte planes
 		const LumaIndex = i;
@@ -790,6 +812,12 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,U
 		const Depth = DepthPixels[i];
 		let Depthf = Math.RangeClamped(DepthMin,DepthMax,Depth);
 
+		Yuv_8_8_8[LumaIndex] = Depthf * 255;
+		Yuv_8_8_8[ChromaUIndex] = 0 * 255;
+		Yuv_8_8_8[ChromaVIndex] = 0 * 255;
+
+		/*
+		
 		if (Params.DepthSquared)
 		{
 			Depthf = 1 - Depthf;
@@ -819,6 +847,7 @@ function Depth16ToYuv_Js(Depth16Plane,DepthWidth,DepthHeight,DepthMin,DepthMax,U
 		Yuv_8_8_8[ChromaVIndex] = Rangeuv[1] * 255;
 		//if (ChromaUIndex > Yuv_8_8_8.length || ChromaVIndex > Yuv_8_8_8.length)
 		//	Pop.Debug(`Out of range; ${ChromaUIndex} ${ChromaVIndex} ${Yuv_8_8_8.length}`);
+		 */
 	}
 
 	return Yuv_8_8_8;
@@ -855,7 +884,7 @@ function GetTinyTestH264()
 }
 
 //	convert a set of textures to YUV_8_8_8 to encode
-function GetH264Pixels(OrigPlanes)
+async function GetH264Pixels(OrigPlanes)
 {
 	//return GetTinyTestH264();
 	
@@ -885,17 +914,22 @@ function GetH264Pixels(OrigPlanes)
 	const DepthHeight = DepthPlane.GetHeight();
 	const DepthToMm = (DepthPlane.GetFormat()=='DepthFloatMetres') ? 1/1000 : 1;
 	const Ranges = GetUvRanges(Params.ChromaRanges);
+	const DepthMin = Params.DepthMin * DepthToMm;
+	const DepthMax = Params.DepthMax * DepthToMm;
 
+	const Yuv = await Pop.Panopoly.DepthToYuvAsync(DepthPlane,DepthMin,DepthMax,Params.ChromaRanges);
+	return Yuv;
+	
 	if (Params.TestDepthToYuv8_88)
 	{
-		const Yuv = Pop.Opencv.TestDepthToYuv8_88(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		const Yuv = Pop.Opencv.TestDepthToYuv8_88(DepthPlane,DepthMin,DepthMax,Params.ChromaRanges);
 		return Yuv;
 	}
 
 	/*
 	//if (Params.TestDepthToYuv8_8_8)
 	{
-		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,Params.DepthMin,Params.DepthMax,Params.ChromaRanges);
+		const Yuv_8_8_8 = Pop.Opencv.TestDepthToYuv8_8_8(DepthPlane,DepthMin,DepthMax,Params.ChromaRanges);
 		return Yuv_8_8_8;
 	}
 */
@@ -909,7 +943,7 @@ function GetH264Pixels(OrigPlanes)
 		const Func = Funcs[FuncName];
 		try
 		{
-			Yuv_8_8_8 = Func(DepthPixels,DepthWidth,DepthHeight,Params.DepthMin*DepthToMm,Params.DepthMax*DepthToMm,Ranges);
+			Yuv_8_8_8 = Func(DepthPixels,DepthWidth,DepthHeight,DepthMin,DepthMax,Ranges);
 			break;
 		}
 		catch (e)
@@ -1132,7 +1166,8 @@ function TCameraWindow(CameraName)
 					this.Encoder.FrameCount = 0;
 				}
 
-				const EncodedTexture = GetH264Pixels(this.VideoTextures);
+				//	want this on another thread now
+				const EncodedTexture = await GetH264Pixels(this.VideoTextures);
 				if ( EncodedTexture )
 				{
 					this.Encoder.FrameCount++;
@@ -1264,8 +1299,8 @@ Pop.Debug("Hello");
 //	start tracking cameras
 FindCamerasLoop().catch(Pop.Debug);
 
-const WebsocketPorts = [Params.WebsocketPort];
-//WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+const WebsocketPorts = [Params.WebsocketPort,Params.WebsocketPort+1,Params.WebsocketPort+2];
+WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 const UdpHosts = [/*['127.0.0.1',Params.UdpPort],*/[Params.UdpHost,Params.UdpPort]];
 UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
