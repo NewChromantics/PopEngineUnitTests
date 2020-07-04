@@ -360,13 +360,9 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 		
 		try
 		{
-			Pop.Debug(`Starting portindex: ${PortIndex}`);
 			PortIndex = (PortIndex === null) ? 0 : PortIndex+1;
-			Pop.Debug(`then portindex: ${PortIndex}`);
 			PortIndex = PortIndex % Ports.length;
-			Pop.Debug(`mod portindex: ${PortIndex}`);
 			const Port = Ports[PortIndex];
-			Pop.Debug(`Opening websocket port ${Port} (${PortIndex} / ${Ports})`);
 			const IterationFinished = await Iteration(Port);
 			return IterationFinished;
 		}
