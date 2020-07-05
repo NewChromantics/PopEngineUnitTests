@@ -1162,13 +1162,14 @@ function TCameraWindow(CameraName)
 					this.Encoder.FrameCount = 0;
 				}
 
-				//	want this on another thread now
-				const EncodedTexture = await GetH264Pixels(this.VideoTextures);
-				if ( EncodedTexture )
+				function OnH264Texture(EncodedTexture)
 				{
+					if ( !EncodedTexture )
+						return;
+
 					this.Encoder.FrameCount++;
 					const EncodeKeyframe = (this.Encoder.FrameCount % Params.KeyframeEveryNFrames) == 0;
-					
+						
 					const EncodeOptions = {};
 					EncodeOptions.Time = Time;
 					EncodeOptions.Keyframe = EncodeKeyframe;
@@ -1177,6 +1178,8 @@ function TCameraWindow(CameraName)
 					this.Encoder.Encode(EncodedTexture,EncodeOptions);
 				}
 				
+				//	want this on another thread now so we can do more than one at once, hence the then
+				GetH264Pixels(this.VideoTextures).then(OnH264Texture.bind(this));
 			}
 			catch (e)
 			{
