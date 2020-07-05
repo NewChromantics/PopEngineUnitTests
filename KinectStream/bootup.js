@@ -95,9 +95,9 @@ const BlackTexture = Pop.CreateColourTexture([0,0,0,1]);
 const EncoderParamPrefix = 'Encode_';
 const Params = {};
 Params.DepthMin = 100;
-Params.DepthMax = 1000;
+Params.DepthMax = 5000;
 Params.ChromaRanges = 6*6;
-Params.PingPongLuma = true;
+Params.PingPongLuma = false;
 Params.DepthSquared = true;
 Params.WebsocketPort = 8080;
 Params.UdpHost = '192.168.0.11';
@@ -114,13 +114,13 @@ Params.TestDepthToYuv8_88 = false;
 Params.RecordH264ToFile = false;
 
 Params.Encode_Quality = 1;
-Params.Encode_AverageKbps = 6000;	//	putting this high gives us the odd -123xxx apple error
+Params.Encode_AverageKbps = 1000;	//	putting this high gives us the odd -123xxx apple error
 Params.Encode_MaxKbps = 0;
 Params.Encode_Realtime = true;
-Params.Encode_MaximisePowerEfficiency = true;
+Params.Encode_MaximisePowerEfficiency = false;
 Params.Encode_MaxSliceBytes = 0;
 Params.Encode_MaxFrameBuffers = 0;
-Params.Encode_ProfileLevel = 0;
+Params.Encode_ProfileLevel = 30;
 
 Params.Encode_EncoderThreads = 5;
 Params.Encode_LookaheadThreads = 5;
@@ -341,6 +341,7 @@ async function WebsocketLoop(Ports,OnNewPeer,SendFrameFunc)
 				function Send(Message)
 				{
 					const Peers = Socket.GetPeers();
+					//Pop.Debug(`Sending to x${Peers.length} peers`);
 					function SendToPeer(Peer)
 					{
 						try
@@ -1302,7 +1303,8 @@ const WebsocketPorts = [Params.WebsocketPort,Params.WebsocketPort+1,Params.Webso
 WebsocketLoop(WebsocketPorts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 const UdpHosts = [/*['127.0.0.1',Params.UdpPort],*/[Params.UdpHost,Params.UdpPort]];
-UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
+//	gr: blindly sending out to a UDP that wasn't connected swallowed all our bandwidth and websocket only got a little data
+//UdpClientSocketLoop(UdpHosts,OnNewPeer,SendNextFrame).then(Pop.Debug).catch(Pop.Debug);
 
 //	gr: wiuthout UDP this doesnt find the kinect!?
 //	gr: or if the TCP is running, it does. something blocks in TCP that should be async
