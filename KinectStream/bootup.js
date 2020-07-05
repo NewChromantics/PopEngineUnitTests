@@ -913,7 +913,7 @@ async function GetH264Pixels(OrigPlanes)
 	const DepthMin = Params.DepthMin * DepthToMm;
 	const DepthMax = Params.DepthMax * DepthToMm;
 
-	const Yuv = await Pop.Panopoly.DepthToYuvAsync(DepthPlane,DepthMin,DepthMax,Params.ChromaRanges);
+	const Yuv = await Pop.Panopoly.DepthToYuvAsync(DepthPlane,DepthMin,DepthMax,Params.ChromaRanges,Params.PingPongLuma);
 	return Yuv;
 	
 	if (Params.TestDepthToYuv8_88)
