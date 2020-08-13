@@ -33,7 +33,9 @@ async function XrLoop()
 	while( true )
 	{
 		const NewDevice = await Pop.Xr.CreateDevice( Window );
-		SetupXrDevice( NewDevice );
+		SetupXrDevice(NewDevice);
+		//	currently not stopping on openxr, this should loop until Device.WaitForEnd();
+		break;
 	}
 }
 
