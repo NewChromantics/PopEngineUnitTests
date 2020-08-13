@@ -25,6 +25,7 @@ function RenderWindow(RenderTarget)
 //	todo: attrib	{xrCompatible: true}, but working with mozilla's emulator...
 let Window = new Pop.Opengl.Window("xr");
 Window.OnRender = RenderWindow;
+Window.OnMouseMove = function () { };
 
 async function XrLoop()
 {
