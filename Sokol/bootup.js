@@ -6,8 +6,7 @@ const Window = new Pop.Gui.Window("Sokol Test");
 
 try
 {
-	const Sokol = new Pop.Sokol.Initialise(Window, "MetalView");
-	Sokol.Render();
+	const Sokol = new Pop.RenderPipeline(Window, "MetalView");
 }
 catch(e)
 {
