@@ -6,7 +6,7 @@ const Window = new Pop.Gui.Window("Sokol Test");
 
 try
 {
-	const Sokol = new Pop.Sokol.RenderPipeline(Window, "GLView");
+	const Sokol = new Pop.Sokol.Context(Window, "GLView");
 }
 catch(e)
 {
