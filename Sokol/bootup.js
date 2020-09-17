@@ -1,16 +1,22 @@
-Pop.Debug("Hello World")
+Pop.Include = function(Filename)
+{
+	const Source = Pop.LoadFileAsString(Filename);
+	return Pop.CompileAndRun( Source, Filename );
+}
+Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
-Pop.Debug(Pop.Sokol)
 
 const Window = new Pop.Gui.Window("Sokol Test");
 
 const Sokol = new Pop.Sokol.Context(Window, "GLView");
 
-let Counter = 0;
+let FrameCounter = 0;
+const FrameRateCounter = new Pop.FrameCounter('Render');
+
 function GetRenderCommands()
 {
 	const Commands = [];
-	const Blue = (Counter % 60)/60;
+	const Blue = (FrameCounter % 60)/60;
 	Commands.push(['Clear',1,0,Blue]);
 	return Commands;
 }
@@ -21,11 +27,12 @@ async function RenderLoop()
 	{
 		//	submit frame for next paint
 		const Commands = GetRenderCommands();
-		Pop.Debug(`Render ${Counter}`);
+		//Pop.Debug(`Render ${FrameCounter}`);
 		await Sokol.Render(Commands);
-		Counter++;
+		FrameCounter++;
+		FrameRateCounter.Add();
 	}
 }
-RenderLoop();
+RenderLoop().catch(Pop.Warning);
 
 
