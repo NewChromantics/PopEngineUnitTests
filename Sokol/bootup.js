@@ -86,14 +86,21 @@ function GetScreenQuad(MinX,MinY,MaxX,MaxY,TheZ=0)
 	
 	const Geometry = {};
 	Geometry.Positions = Positions;
+	
+	Geometry.Positions = [
+	0.0,  0.5, 0.5,
+	0.5, -0.5, 0.5,
+	-0.5, -0.5, 0.5,
+						  ];
+	
 	Geometry.PositionSize = 3;
-	Geometry.TexCoords = TexCoords;
+	//Geometry.TexCoords = TexCoords;
 	return Geometry;
 }
 
 async function GetScreenQuad_TriangleBuffer(RenderContext)
 {
-	const Geometry = GetScreenQuad(0,0,1,1,0);
+	const Geometry = GetScreenQuad(-0.5,-0.5,0.5,0.5,0.5);
 	const Buffer = CreateTriangleBuffer(RenderContext,Geometry);
 	return Buffer;
 }
@@ -103,25 +110,29 @@ async function GetScreenQuad_TriangleBuffer(RenderContext)
 const TestShader_VertSource =`
 precision highp float;
 attribute vec3 LocalPosition;
-attribute vec3 LocalUv;
-varying vec2 uv;
+//attribute vec3 LocalUv;
+//varying vec2 uv;
 void main()
 {
 	gl_Position = vec4(LocalPosition,1);
-	uv = LocalUv.xy;
+	gl_Position.z = 0.5;
+	//uv = LocalUv.xy;
 }
 `;
-
 const TestShader_FragSource =`
 precision highp float;
 uniform vec4 Colour;
-varying vec2 uv;
+//varying vec2 uv;
 void main()
 {
 	gl_FragColor = Colour;
-	gl_FragColor.xy = uv;
+	//gl_FragColor.xy = uv;
+	gl_FragColor = vec4(0,0,0,1);
 }
 `;
+//	todo: get rid of this requirement from sokol
+const TestShaderUniforms = [];
+TestShaderUniforms.push( {Name:'Colour',Type:'vec4'} );
 
 let ScreenQuad = null;
 let TestShader = null;
@@ -135,11 +146,12 @@ function GetRenderCommands()
 	
 	Commands.push(['Clear',1,0,Blue]);
 	
-	/*
-	const Uniforms = {};
-	Uniforms.Colour = [0,1,0,1];
-	Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
-	*/
+	{
+		const Uniforms = {};
+		Uniforms.Colour = [0,1,0,1];
+		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
+	}
+	
 	return Commands;
 }
 
@@ -161,7 +173,7 @@ async function RenderLoop()
 			const VertSource = TestShader_VertSource;
 			try
 			{
-				TestShader = await Sokol.CreateShader(VertSource,FragSource);
+				TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms);
 				Pop.Debug(`TestShader=${TestShader}`);
 			}
 			catch(e)
@@ -186,15 +198,22 @@ async function RenderLoop()
 		}
 		
 		
-		//await Pop.Yield(100);
-		//	submit frame for next paint
-		const Commands = GetRenderCommands();
-		//Pop.Debug(`Render ${FrameCounter}`);
-		await Sokol.Render(Commands);
+		try
+		{
+			//await Pop.Yield(100);
+			//	submit frame for next paint
+			const Commands = GetRenderCommands();
+			//Pop.Debug(`Render ${FrameCounter}`);
+			await Sokol.Render(Commands);
+		}
+		catch(e)
+		{
+			Pop.Warning(e);
+			await Pop.Yield(1000);
+		}
+
 		FrameCounter++;
 		FrameRateCounter.Add();
-		
-		
 	}
 }
 RenderLoop().catch(Pop.Warning);
