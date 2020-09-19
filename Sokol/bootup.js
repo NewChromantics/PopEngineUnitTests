@@ -102,36 +102,24 @@ async function GetScreenQuad_TriangleBuffer(RenderContext)
 
 const TestShader_VertSource =`
 precision highp float;
-uniform vec4 VertexRect;// = vec4(0,0,1,1);
-attribute vec2 TexCoord;
+attribute vec3 LocalPosition;
+attribute vec3 LocalUv;
 varying vec2 uv;
 void main()
 {
-	gl_Position = vec4(TexCoord.x,TexCoord.y,0,1);
-	
-	float l = VertexRect[0];
-	float t = VertexRect[1];
-	float r = l+VertexRect[2];
-	float b = t+VertexRect[3];
-	
-	l = mix( -1.0, 1.0, l );
-	r = mix( -1.0, 1.0, r );
-	t = mix( 1.0, -1.0, t );
-	b = mix( 1.0, -1.0, b );
-	
-	gl_Position.x = mix( l, r, TexCoord.x );
-	gl_Position.y = mix( t, b, TexCoord.y );
-	
-	uv = vec2( TexCoord.x, TexCoord.y );
+	gl_Position = vec4(LocalPosition,1);
+	uv = LocalUv.xy;
 }
 `;
 
 const TestShader_FragSource =`
 precision highp float;
 uniform vec4 Colour;
+varying vec2 uv;
 void main()
 {
 	gl_FragColor = Colour;
+	gl_FragColor.xy = uv;
 }
 `;
 
@@ -158,6 +146,13 @@ function GetRenderCommands()
 
 async function RenderLoop()
 {
+	/*
+	await Pop.Yield(100);
+	//	submit frame for next paint
+	const Commands = GetRenderCommands();
+	//Pop.Debug(`Render ${FrameCounter}`);
+	await Sokol.Render(Commands);
+	*/
 	while (Sokol)
 	{
 		if ( !TestShader )
@@ -174,11 +169,15 @@ async function RenderLoop()
 				Pop.Warning(e);
 			}
 		}
+		
+		
 		if ( !ScreenQuad )
 		{
 			try
 			{
+				Pop.Debug(`Creating geometry...`);
 				ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
+				Pop.Debug(`ScreenQuad=${ScreenQuad}`);
 			}
 			catch(e)
 			{
@@ -187,13 +186,15 @@ async function RenderLoop()
 		}
 		
 		
-		await Pop.Yield(100);
+		//await Pop.Yield(100);
 		//	submit frame for next paint
 		const Commands = GetRenderCommands();
 		//Pop.Debug(`Render ${FrameCounter}`);
 		await Sokol.Render(Commands);
 		FrameCounter++;
 		FrameRateCounter.Add();
+		
+		
 	}
 }
 RenderLoop().catch(Pop.Warning);
