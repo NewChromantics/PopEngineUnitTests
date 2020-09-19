@@ -48,6 +48,12 @@ async function CreateTriangleBuffer(RenderContext,Geometry)
 	//const TriangleIndexes = new Int32Array( Geometry.TriangleIndexes );
 	const TriangleIndexes = undefined;
 	const TriangleBuffer = await RenderContext.CreateGeometry( VertexAttribs, TriangleIndexes );
+	
+	//	these need to be in the right order...
+	//	that depends what order thejs lib reads VertexAttribs in CreateGeometry...
+	//	TriangleBuffer isn't an object either...
+	ScreenQuad_Attribs = Object.keys(VertexAttribs);
+	
 	return TriangleBuffer;
 }
 
@@ -58,15 +64,15 @@ function GetScreenQuad(MinX,MinY,MaxX,MaxY,TheZ=0)
 	
 	function AddTriangle(a,b,c)
 	{
-		Positions.push( ...a );
-		Positions.push( ...b );
-		Positions.push( ...c );
+		Positions.push( ...a.slice(0,3) );
+		Positions.push( ...b.slice(0,3) );
+		Positions.push( ...c.slice(0,3) );
 		
 		const TriangleIndex = Positions.length / 3;
-		function PosToTexCoord(xyz)
+		function PosToTexCoord(xyzuv)
 		{
-			const u = xyz[0];
-			const v = xyz[2];
+			const u = xyzuv[3];
+			const v = xyzuv[4];
 			const w = TriangleIndex;
 			return [u,v,w];
 		}
@@ -76,25 +82,18 @@ function GetScreenQuad(MinX,MinY,MaxX,MaxY,TheZ=0)
 		TexCoords.push( ...PosToTexCoord(c) );
 	}
 	
-	let tr = [MaxX,MinY,TheZ];
-	let tl = [MinX,MinY,TheZ];
-	let br = [MaxX,MaxY,TheZ];
-	let bl = [MinX,MaxY,TheZ];
+	let tr = [MaxX,MinY,TheZ,	1,0];
+	let tl = [MinX,MinY,TheZ,	0,0];
+	let br = [MaxX,MaxY,TheZ,	1,1];
+	let bl = [MinX,MaxY,TheZ,	0,1];
 	
 	AddTriangle( tl, tr, br );
 	AddTriangle( br, bl, tl );
 	
 	const Geometry = {};
 	Geometry.Positions = Positions;
-	
-	Geometry.Positions = [
-	0.0,  0.5, 0.5,
-	0.5, -0.5, 0.5,
-	-0.5, -0.5, 0.5,
-						  ];
-	
 	Geometry.PositionSize = 3;
-	//Geometry.TexCoords = TexCoords;
+	Geometry.TexCoords = TexCoords;
 	return Geometry;
 }
 
@@ -109,25 +108,25 @@ async function GetScreenQuad_TriangleBuffer(RenderContext)
 
 const TestShader_VertSource =`
 precision highp float;
+attribute vec3 LocalUv;
 attribute vec3 LocalPosition;
-//attribute vec3 LocalUv;
-//varying vec2 uv;
+varying vec2 uv;
 void main()
 {
 	gl_Position = vec4(LocalPosition,1);
 	gl_Position.z = 0.5;
-	//uv = LocalUv.xy;
+	uv = LocalUv.xy;
 }
 `;
 const TestShader_FragSource =`
 precision highp float;
 uniform vec4 Colour;
-//varying vec2 uv;
+varying vec2 uv;
 void main()
 {
 	gl_FragColor = Colour;
-	//gl_FragColor.xy = uv;
-	gl_FragColor = vec4(0,0,0,1);
+	gl_FragColor.xy = uv;
+	//gl_FragColor = vec4(0,0,0,1);
 }
 `;
 //	todo: get rid of this requirement from sokol
@@ -136,7 +135,7 @@ TestShaderUniforms.push( {Name:'Colour',Type:'vec4'} );
 
 let ScreenQuad = null;
 let TestShader = null;
-
+let ScreenQuad_Attribs = null;
 
 
 function GetRenderCommands()
@@ -167,13 +166,14 @@ async function RenderLoop()
 	*/
 	while (Sokol)
 	{
-		if ( !TestShader )
+		if ( !TestShader && ScreenQuad_Attribs )
 		{
 			const FragSource = TestShader_FragSource;
 			const VertSource = TestShader_VertSource;
 			try
 			{
-				TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms);
+				const TestShaderAttribs = ScreenQuad_Attribs;
+				TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms,TestShaderAttribs);
 				Pop.Debug(`TestShader=${TestShader}`);
 			}
 			catch(e)
