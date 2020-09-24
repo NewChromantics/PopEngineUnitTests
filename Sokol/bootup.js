@@ -13,7 +13,7 @@ const Sokol = new Pop.Sokol.Context(Window, "GLView");
 let FrameCounter = 0;
 const FrameRateCounter = new Pop.FrameCounter('Render');
 
-
+const CatImage = Pop.LoadFileAsImage('Cat.jpg');
 
 async function CreateTriangleBuffer(RenderContext,Geometry)
 {
@@ -120,6 +120,7 @@ void main()
 `;
 const TestShader_FragSource =`
 precision highp float;
+uniform sampler2D ImageA;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
 varying vec2 uv;
@@ -129,6 +130,8 @@ void main()
 		gl_FragColor = ColourA;
 	else
 		gl_FragColor = ColourB;
+	
+	gl_FragColor = texture2D( ImageA, uv );
 	//gl_FragColor.xy = uv;
 	//gl_FragColor = vec4(0,0,0,1);
 }
@@ -137,6 +140,7 @@ void main()
 const TestShaderUniforms = [];
 TestShaderUniforms.push( {Name:'ColourA',Type:'vec4'} );
 TestShaderUniforms.push( {Name:'ColourB',Type:'vec4'} );
+TestShaderUniforms.push( {Name:'ImageA',Type:'sampler2D'} );
 
 let ScreenQuad = null;
 let TestShader = null;
@@ -154,6 +158,7 @@ function GetRenderCommands()
 		const Uniforms = {};
 		Uniforms.ColourA = [Blue,1,0,1];
 		Uniforms.ColourB = [0,1,1,1];
+		Uniforms.ImageA = CatImage;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
 	
