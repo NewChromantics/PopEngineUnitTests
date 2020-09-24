@@ -120,18 +120,23 @@ void main()
 `;
 const TestShader_FragSource =`
 precision highp float;
-uniform vec4 Colour;
+uniform vec4 ColourB;
+uniform vec4 ColourA;
 varying vec2 uv;
 void main()
 {
-	gl_FragColor = Colour;
+	if ( uv.x < 0.5 )
+		gl_FragColor = ColourA;
+	else
+		gl_FragColor = ColourB;
 	//gl_FragColor.xy = uv;
 	//gl_FragColor = vec4(0,0,0,1);
 }
 `;
 //	todo: get rid of this requirement from sokol
 const TestShaderUniforms = [];
-TestShaderUniforms.push( {Name:'Colour',Type:'vec4'} );
+TestShaderUniforms.push( {Name:'ColourA',Type:'vec4'} );
+TestShaderUniforms.push( {Name:'ColourB',Type:'vec4'} );
 
 let ScreenQuad = null;
 let TestShader = null;
@@ -147,7 +152,8 @@ function GetRenderCommands()
 	
 	{
 		const Uniforms = {};
-		Uniforms.Colour = [Blue,1,0,1];
+		Uniforms.ColourA = [Blue,1,0,1];
+		Uniforms.ColourB = [0,1,1,1];
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
 	
