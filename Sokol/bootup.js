@@ -159,6 +159,7 @@ function GetRenderCommands()
 		Uniforms.ColourA = [Blue,1,0,1];
 		Uniforms.ColourB = [0,1,1,1];
 		Uniforms.ImageA = CatImage;
+		Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
 	
