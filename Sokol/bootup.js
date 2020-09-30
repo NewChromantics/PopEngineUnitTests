@@ -146,11 +146,17 @@ let ScreenQuad = null;
 let TestShader = null;
 let ScreenQuad_Attribs = null;
 
+let RenderImage = null;
 
 function GetRenderCommands()
 {
 	const Commands = [];
 	const Blue = (FrameCounter % 60)/60;
+	
+	//	test freeing resources
+	RenderImage = new Pop.Image(`Image #${FrameCounter}`);
+	RenderImage.Copy(CatImage);
+	CatImage.Flip();
 	
 	Commands.push(['Clear',1,0,Blue]);
 	
@@ -159,6 +165,7 @@ function GetRenderCommands()
 		Uniforms.ColourA = [Blue,1,0,1];
 		Uniforms.ColourB = [0,1,1,1];
 		Uniforms.ImageA = CatImage;
+		Uniforms.ImageA = RenderImage;
 		Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
@@ -226,6 +233,7 @@ async function RenderLoop()
 
 		FrameCounter++;
 		FrameRateCounter.Add();
+		Pop.GarbageCollect();
 	}
 }
 RenderLoop().catch(Pop.Warning);
