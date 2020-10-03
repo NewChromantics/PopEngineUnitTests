@@ -136,28 +136,45 @@ void main()
 	//gl_FragColor = vec4(0,0,0,1);
 }
 `;
+
+const TargetTestShader_FragSource = `
+precision highp float;
+varying vec2 uv;
+void main()
+{
+	gl_FragColor = vec4(uv,0,1);
+}
+`;
 //	todo: get rid of this requirement from sokol
 const TestShaderUniforms = [];
 TestShaderUniforms.push( {Name:'ColourA',Type:'vec4'} );
 TestShaderUniforms.push( {Name:'ColourB',Type:'vec4'} );
 TestShaderUniforms.push( {Name:'ImageA',Type:'sampler2D'} );
+const TargetTestShaderUniforms = TestShaderUniforms;
 
 let ScreenQuad = null;
 let TestShader = null;
 let ScreenQuad_Attribs = null;
 
-let RenderImage = null;
 
 function GetRenderCommands()
 {
 	const Commands = [];
 	const Blue = (FrameCounter % 60)/60;
+
+	let TargetImage = new Pop.Image('Target Image');
+	TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
 	
 	//	test freeing resources
-	RenderImage = new Pop.Image(`Image #${FrameCounter}`);
+	let RenderImage = new Pop.Image(`Image #${FrameCounter}`);
 	RenderImage.Copy(CatImage);
+	//	flip every frame
 	CatImage.Flip();
-	
+
+	Commands.push(['SetRenderTarget'],TargetImage);
+	Commands.push(['Clear',0,1,0]);
+
+	Commands.push(['SetRenderTarget'],null);
 	Commands.push(['Clear',1,0,Blue]);
 	
 	{
@@ -166,6 +183,7 @@ function GetRenderCommands()
 		Uniforms.ColourB = [0,1,1,1];
 		Uniforms.ImageA = CatImage;
 		Uniforms.ImageA = RenderImage;
+		Uniforms.ImageA = TargetImage;
 		Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
