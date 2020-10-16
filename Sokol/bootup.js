@@ -6,7 +6,7 @@ Pop.Include = function(Filename)
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
 
-const Window = new Pop.Gui.Window("Sokol Test");
+const Window = new Pop.Gui.Window(null);
 
 const Sokol = new Pop.Sokol.Context(Window, "GLView");
 
@@ -107,7 +107,7 @@ async function GetScreenQuad_TriangleBuffer(RenderContext)
 
 
 const TestShader_VertSource =`
-precision highp float;
+//precision highp float;
 attribute vec3 LocalUv;
 attribute vec3 LocalPosition;
 varying vec2 uv;
@@ -119,7 +119,7 @@ void main()
 }
 `;
 const TestShader_FragSource =`
-precision highp float;
+//precision highp float;
 uniform sampler2D ImageA;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
@@ -171,10 +171,10 @@ function GetRenderCommands()
 	//	flip every frame
 	CatImage.Flip();
 
-	Commands.push(['SetRenderTarget'],TargetImage);
+	Commands.push(['SetRenderTarget', TargetImage]);
 	Commands.push(['Clear',0,1,0]);
 
-	Commands.push(['SetRenderTarget'],null);
+	Commands.push(['SetRenderTarget', null]);
 	Commands.push(['Clear',1,0,Blue]);
 	
 	{
@@ -184,7 +184,7 @@ function GetRenderCommands()
 		Uniforms.ImageA = CatImage;
 		Uniforms.ImageA = RenderImage;
 		Uniforms.ImageA = TargetImage;
-		Uniforms.ZZZFillerForChakraCore = false;
+		//Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
 	
@@ -203,6 +203,20 @@ async function RenderLoop()
 	*/
 	while (Sokol)
 	{
+		if ( !ScreenQuad )
+		{
+			try
+			{
+				Pop.Debug(`Creating geometry...`);
+				ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
+				Pop.Debug(`ScreenQuad=${ScreenQuad}`);
+			}
+			catch(e)
+			{
+				Pop.Warning(e);
+			}
+		}
+		
 		if ( !TestShader && ScreenQuad_Attribs )
 		{
 			const FragSource = TestShader_FragSource;
@@ -212,21 +226,6 @@ async function RenderLoop()
 				const TestShaderAttribs = ScreenQuad_Attribs;
 				TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms,TestShaderAttribs);
 				Pop.Debug(`TestShader=${TestShader}`);
-			}
-			catch(e)
-			{
-				Pop.Warning(e);
-			}
-		}
-		
-		
-		if ( !ScreenQuad )
-		{
-			try
-			{
-				Pop.Debug(`Creating geometry...`);
-				ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
-				Pop.Debug(`ScreenQuad=${ScreenQuad}`);
 			}
 			catch(e)
 			{
