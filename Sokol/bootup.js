@@ -253,6 +253,37 @@ async function RenderLoop()
 		Pop.GarbageCollect();
 	}
 }
-RenderLoop().catch(Pop.Warning);
+// RenderLoop().catch(Pop.Warning);
 
+async function RenderTargetTest()
+{
+	ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
 
+	const FragSource = TestShader_FragSource;
+	const VertSource = TestShader_VertSource;
+	const TestShaderAttribs = ScreenQuad_Attribs;
+	TestShader = await Sokol.CreateShader( VertSource, FragSource, TestShaderUniforms, TestShaderAttribs );
+
+	let Image = new Pop.Image( 'Test Image' );
+
+	const Uniforms = {};
+
+	// This needs to be here otherwise this message appears for both shaders
+	// sg_apply_bindings: vertex shader image count doesn't match sg_shader_desc
+	// Not sure I understand why
+	Uniforms.ImageA = Image;
+
+	const Commands = [];
+
+	Commands.push( [ 'SetRenderTarget', Image] );
+	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
+
+	Commands.push( [ "SetRenderTarget", null ] )
+	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
+
+	await Sokol.Render(Commands);
+
+	Pop.Debug("Finished");
+}
+
+RenderTargetTest().catch(Pop.Warning);
