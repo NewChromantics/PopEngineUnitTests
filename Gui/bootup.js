@@ -1,5 +1,6 @@
-
 let Window = new Pop.Gui.Window("Platform Native Window!");
+
+/*
 let Slider = new Pop.Gui.Slider( Window, [0,0,600,40] );
 let Label = new Pop.Gui.Label( Window, [0,40,600,30] );
 Label.SetValue("Hello #");
@@ -104,3 +105,19 @@ function MakeRainbowImage(Width,Height)
 const Pixels = MakeRainbowImage(200,200);
 const Image = new Pop.Gui.ImageMap(Window,[0,270,Pixels.GetWidth(),Pixels.GetHeight()]);
 Image.SetImage(Pixels);
+*/
+
+async function AddSubWindowIcons()
+{
+	const GridView = new Pop.Gui.Window('GridView');
+	
+	for ( let i=0;	i<10;	i++ )
+	{
+		//const Icon = new Pop.Gui.ImageMap(GridView, [0,0,50,50] );
+		const Icon = new Pop.Gui.Label(GridView,[0,0,100,100]);
+		Icon.SetValue(`Label ${i}`);
+		Icon.OnClicked = function() {	Pop.Debug(`Clicked ${i}`);	};
+	}
+}
+
+AddSubWindowIcons().catch(Pop.Warning);
