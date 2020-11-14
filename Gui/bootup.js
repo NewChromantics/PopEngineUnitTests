@@ -44,7 +44,7 @@ ColourBox.OnChanged(Colour);
 
 
 
-
+*/
 function NormalToRedGreenBlue(Normal)
 {
 	function Range(Min,Max,Value)
@@ -102,10 +102,14 @@ function MakeRainbowImage(Width,Height)
 	Pixels.WritePixels( Width, Height, PixelBuffer, Format );
 	return Pixels;
 }
-const Pixels = MakeRainbowImage(200,200);
-const Image = new Pop.Gui.ImageMap(Window,[0,270,Pixels.GetWidth(),Pixels.GetHeight()]);
-Image.SetImage(Pixels);
-*/
+
+const RainbowPixels = MakeRainbowImage(200,200);
+//const Image = new Pop.Gui.ImageMap(Window,[0,270,Pixels.GetWidth(),Pixels.GetHeight()]);
+//Image.SetImage(RainbowPixels);
+
+
+const ImageGui = new Pop.Gui.ImageMap(Window,"TestImageView");
+ImageGui.SetImage(RainbowPixels);
 
 async function AddSubWindowIcons()
 {
@@ -113,9 +117,10 @@ async function AddSubWindowIcons()
 	
 	for ( let i=0;	i<10;	i++ )
 	{
-		//const Icon = new Pop.Gui.ImageMap(GridView, [0,0,50,50] );
-		const Icon = new Pop.Gui.Label(GridView,[0,0,100,100]);
-		Icon.SetValue(`Label ${i}`);
+		const Icon = new Pop.Gui.ImageMap(GridView, [0,0,50,50] );
+		Icon.SetImage(RainbowPixels);
+		//const Icon = new Pop.Gui.Label(GridView,[0,0,100,100]);
+		//Icon.SetValue(`Label ${i}`);
 		Icon.OnClicked = function() {	Pop.Debug(`Clicked ${i}`);	};
 	}
 }
