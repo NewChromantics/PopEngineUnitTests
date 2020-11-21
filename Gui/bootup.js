@@ -124,10 +124,12 @@ async function AddSubWindowIcons()
 		const Icon = new Pop.Gui.Button(GridView, Rect );
 		//Icon.SetImage(RainbowPixels);
 		
-		Icon.SetVisible( (i % 2)==0 );
+		const Style = {};
+		Style.Visible = (i % 2)==0;
+		Icon.SetStyle(Style);
 		
 		//const Icon = new Pop.Gui.Label(GridView,[0,0,100,100]);
-		Icon.SetLabel(`Label ${i}`);
+		Icon.SetText(`Label ${i}`);
 		Icon.OnClicked = function() {	Pop.Debug(`Clicked ${i}`);	};
 	}
 }
@@ -135,13 +137,27 @@ async function AddSubWindowIcons()
 AddSubWindowIcons().catch(Pop.Warning);
 
 
+const StyleRed = {};
+StyleRed.Colour = [255,0,0,0];
+const StyleGreen = {};
+StyleGreen.Colour = [0,255,0];
 const ButtonAsLabel1 = new Pop.Gui.TickBox(Window,'ArIsTrackingLabel');
-ButtonAsLabel1.SetValue(true);
-ButtonAsLabel1.OnChanged = function(Value)	{	Pop.Debug(`Button1 value=${Value}`);	}
-ButtonAsLabel1.SetLabel('Label=True');
+const InitialValue = ButtonAsLabel1.GetValue();
+ButtonAsLabel1.SetText(`Initial value=${InitialValue}`);
+//ButtonAsLabel1.SetValue(true);
+ButtonAsLabel1.OnChanged = function(Value)	
+{	
+	ButtonAsLabel1.SetStyle(StyleGreen);
+	this.SetText(`Button2=${Value}`);	
+}
+ButtonAsLabel1.SetStyle(StyleRed);
+
 
 const ButtonAsLabel2 = new Pop.Gui.TickBox(Window,'RecordButton');
 ButtonAsLabel2.SetValue(false);
-ButtonAsLabel2.OnChanged = function(Value)	{	Pop.Debug(`Button2 value=${Value}`);	}
-ButtonAsLabel2.SetLabel('Label=False');
+ButtonAsLabel2.OnChanged = function(Value)	
+{	
+	//this.SetText(`Button2=${Value}`);	
+}
+
 
