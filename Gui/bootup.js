@@ -107,22 +107,41 @@ const RainbowPixels = MakeRainbowImage(200,200);
 //const Image = new Pop.Gui.ImageMap(Window,[0,270,Pixels.GetWidth(),Pixels.GetHeight()]);
 //Image.SetImage(RainbowPixels);
 
-
+/*
 const ImageGui = new Pop.Gui.ImageMap(Window,"TestImageView");
 ImageGui.SetImage(RainbowPixels);
-
+ImageGui.SetVisible(false);
+*/
 async function AddSubWindowIcons()
 {
-	const GridView = new Pop.Gui.Window('GridView');
+	const GridView = new Pop.Gui.Window('ArtifactThumbnails');
 	
 	for ( let i=0;	i<10;	i++ )
 	{
-		const Icon = new Pop.Gui.ImageMap(GridView, [0,0,50,50] );
-		Icon.SetImage(RainbowPixels);
+		const Rect = [20,20,60+(i*5),200];
+		//const Icon = new Pop.Gui.ImageMap(GridView, Rect );
+		//Icon.SetImage(RainbowPixels);
+		const Icon = new Pop.Gui.Button(GridView, Rect );
+		//Icon.SetImage(RainbowPixels);
+		
+		Icon.SetVisible( (i % 2)==0 );
+		
 		//const Icon = new Pop.Gui.Label(GridView,[0,0,100,100]);
-		//Icon.SetValue(`Label ${i}`);
+		Icon.SetLabel(`Label ${i}`);
 		Icon.OnClicked = function() {	Pop.Debug(`Clicked ${i}`);	};
 	}
 }
 
 AddSubWindowIcons().catch(Pop.Warning);
+
+
+const ButtonAsLabel1 = new Pop.Gui.TickBox(Window,'ArIsTrackingLabel');
+ButtonAsLabel1.SetValue(true);
+ButtonAsLabel1.OnChanged = function(Value)	{	Pop.Debug(`Button1 value=${Value}`);	}
+ButtonAsLabel1.SetLabel('Label=True');
+
+const ButtonAsLabel2 = new Pop.Gui.TickBox(Window,'RecordButton');
+ButtonAsLabel2.SetValue(false);
+ButtonAsLabel2.OnChanged = function(Value)	{	Pop.Debug(`Button2 value=${Value}`);	}
+ButtonAsLabel2.SetLabel('Label=False');
+
