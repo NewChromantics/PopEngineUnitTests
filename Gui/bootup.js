@@ -1,5 +1,78 @@
 let Window = new Pop.Gui.Window("Platform Native Window!");
 
+
+const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
+TestLabel1.SetText('Label from js');
+async function CounterLabelThread()
+{
+	let Counter = 0;
+	while(true)
+	{
+		await Pop.Yield(1);
+		TestLabel1.SetText(`Label counter ${Counter}`);
+		Counter++;
+	}
+}
+CounterLabelThread()
+
+const FrameCounterLabel = new Pop.Gui.Label(Window,'FrameCounterLabel');
+
+/*
+const TestButton1 = new Pop.Gui.Button(Window,'TestButton1');
+TestButton1.OnClicked = function()
+{
+	Pop.Debug('Test Button1 clicked!');
+	this.SetText('New button label');
+}
+
+const TestButton2 = new Pop.Gui.Button(Window,'TestButton2');
+TestButton2.OnClicked = function()
+{
+	Pop.Debug(`Test Button2 clicked!`);
+	this.SetText('New button label2');
+}
+
+const TestTickBox1 = new Pop.Gui.TickBox(Window,'TestTickBox1');
+TestTickBox1.SetValue(true);
+TestTickBox1.SetText(`New tickbox label: ${TestTickBox1.GetValue()}`);
+TestTickBox1.OnChanged = function(NewValue)
+{
+	Pop.Debug(`js: TestTickBox1 now ${NewValue}`);
+	TestTickBox1.SetText(`now ${NewValue}`);
+}
+*/
+
+const Sokol = new Pop.Sokol.Context(Window, "TestRenderView");
+async function RenderLoop()
+{
+	let FrameCounter = 0;
+	function GetRenderCommands()
+	{
+		const Commands = [];
+		const Blue = (FrameCounter % 60)/60;
+		//Commands.push(['SetRenderTarget', null]);
+		Commands.push(['Clear',1,0,Blue]);
+		return Commands;
+	}
+
+	while (Sokol)
+	{
+		try
+		{
+			const Commands = GetRenderCommands();
+			await Sokol.Render(Commands);
+			FrameCounter++;
+			FrameCounterLabel.SetText(`Frame ${FrameCounter}`);
+		}
+		catch(e)
+		{
+			Pop.Warning(e);
+			await Pop.Yield(1000);
+		}
+	}
+}
+RenderLoop().catch(FrameCounterLabel.SetText.bind(FrameCounterLabel));
+
 /*
 let Slider = new Pop.Gui.Slider( Window, [0,0,600,40] );
 let Label = new Pop.Gui.Label( Window, [0,40,600,30] );
@@ -112,6 +185,7 @@ const ImageGui = new Pop.Gui.ImageMap(Window,"TestImageView");
 ImageGui.SetImage(RainbowPixels);
 ImageGui.SetVisible(false);
 */
+
 async function AddSubWindowIcons()
 {
 	const GridView = new Pop.Gui.Window('ArtifactThumbnails');
