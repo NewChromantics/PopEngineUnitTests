@@ -1,6 +1,7 @@
 let Window = new Pop.Gui.Window("Platform Native Window!");
 
-let TestArray = new Pop.Gui.StringArray( [ "a", "e", "i", "o", "u" ] )
+const TestArray = new Pop.Gui.StringArray(Window, "TestArray");
+TestArray.SetValue(["Hello", "World"]);
 
 const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
 TestLabel1.SetText('Label from js');
