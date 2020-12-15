@@ -1,11 +1,11 @@
 let Window = new Pop.Gui.Window("Platform Native Window!");
 
-const TestArray = new Pop.Gui.StringArray(Window, "TestArray");
+const TestList = new Pop.Gui.List(Window, "TestList");
 
 (async () => {
-    TestArray.SetValue(["Hello", "World"]);
+    TestList.SetValue(["Hello", "World"]);
     await Pop.Yield(2000);
-    TestArray.SetValue(["oh", "yah", "mon"]);
+    TestList.SetValue(["oh", "yah", "mon"]);
 })()
 
 const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
