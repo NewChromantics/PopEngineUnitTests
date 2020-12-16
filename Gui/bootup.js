@@ -2,11 +2,17 @@ let Window = new Pop.Gui.Window("Platform Native Window!");
 
 const TestList = new Pop.Gui.List(Window, "TestList");
 
-(async () => {
-    TestList.SetValue(["Hello", "World"]);
-    await Pop.Yield(2000);
-    TestList.SetValue(["oh", "yah", "mon"]);
-})()
+
+async function SlowlyUpdateList()
+{
+	const Strings = ['one','two','three','four','five','six','seven','eight','nine','ten'];
+	for ( let i=0;	i<Strings.length;	i++ )
+	{
+		TestList.SetValue( Strings.slice(0,i) );
+		await Pop.Yield(2000);
+	}
+}
+SlowlyUpdateList();
 
 const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
 TestLabel1.SetText('Label from js');
