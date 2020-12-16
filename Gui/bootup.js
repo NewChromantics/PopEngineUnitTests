@@ -2,22 +2,28 @@ let Window = new Pop.Gui.Window("Platform Native Window!");
 
 const TestList = new Pop.Gui.List(Window, "TestList");
 
+Pop.WriteStringToFile(`Documents/hello_${Math.random()}.txt`,`${Math.random()}`);
 
 async function SlowlyUpdateList()
 {
-	const Strings = ['one','two','three','four','five','six','seven','eight','nine','ten'];
+	//const Strings = ['one','two','three','four','five','six','seven','eight','nine','ten'];
+	const Strings = Pop.GetFilenames('Documents/');
+	Pop.Debug(`Filenames: ${Strings}`);
 	for ( let i=0;	i<Strings.length;	i++ )
 	{
 		TestList.SetValue( Strings.slice(0,i) );
-		await Pop.Yield(2000);
+		await Pop.Yield(1000);
 	}
 }
-SlowlyUpdateList();
+SlowlyUpdateList().catch(Pop.Warning);
 
-const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
-TestLabel1.SetText('Label from js');
+
+
+
 async function CounterLabelThread()
 {
+	const TestLabel1 = new Pop.Gui.Label(Window,'TestLabel1');
+	TestLabel1.SetText('Label from js');
 	let Counter = 0;
 	while(true)
 	{
@@ -26,7 +32,7 @@ async function CounterLabelThread()
 		Counter++;
 	}
 }
-CounterLabelThread()
+CounterLabelThread().catch(Pop.Warning);
 
 const FrameCounterLabel = new Pop.Gui.Label(Window,'FrameCounterLabel');
 
@@ -199,6 +205,8 @@ ImageGui.SetImage(RainbowPixels);
 ImageGui.SetVisible(false);
 */
 
+
+/*
 async function AddSubWindowIcons()
 {
 	const GridView = new Pop.Gui.Window('ArtifactThumbnails');
@@ -246,5 +254,4 @@ ButtonAsLabel2.OnChanged = function(Value)
 {	
 	//this.SetText(`Button2=${Value}`);	
 }
-
-
+*/
