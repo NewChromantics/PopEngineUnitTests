@@ -1,6 +1,6 @@
-export function Hello()
+export default function Hello()
 {
-print("hellooutput");
-  return 1;
+	Pop.Debug("hellooutput");
+	return 1;
 }
 

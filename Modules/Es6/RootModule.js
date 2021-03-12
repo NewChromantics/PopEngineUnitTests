@@ -1,5 +1,5 @@
 import Hello from './FuncModule.js'
-import MyClass from './ClassModule.js'
+import { MyClass } from './ClassModule.js'
 
 //	reexport
 export { Hello, MyClass };
