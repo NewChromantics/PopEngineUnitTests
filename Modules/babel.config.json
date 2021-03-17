@@ -5,8 +5,10 @@
       {
         "targets": {
           "esmodules": true
-        }
-      }
+		},
+          "modules": "commonjs",
+          "exclude":["transform-async-to-generator"]
+		}
     ]
   ]
 }
