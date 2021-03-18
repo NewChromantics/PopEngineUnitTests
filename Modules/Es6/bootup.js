@@ -1,4 +1,4 @@
-import {Hello,RootTest} from './RootModule.js'
+import {Hello,RootTest} from './Folder/RootModule.js'
 
 Hello();
 const rt = new RootTest();
