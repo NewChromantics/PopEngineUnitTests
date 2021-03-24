@@ -3,12 +3,27 @@ let Window = new Pop.Gui.Window("TestAppWindow");
 //let Renderer = new Pop.Sokol.Context(Window,'TestRenderView');
 
 let TestValues = ['a','b','c','d'];
+let SelectedValues = TestValues.slice(1,2);
+
 let TestList = new Pop.Gui.List(Window,'TestStringList');
 TestList.SetValue(TestValues);
 TestList.OnChanged = function(NewValues)
 {
 	Pop.Debug(`Test list changed; ${NewValues}`);
 }
+
+//	gr: this is how we do "selections" at the moment, but
+//		I think every platform wants this functionality really
+let TestStringListSelected = new Pop.Gui.List(Window,'TestStringListSelected');
+TestStringListSelected.SetValue(SelectedValues);
+TestStringListSelected.OnChanged = function(NewValues)
+{
+	Pop.Debug(`Test list selected changed; ${NewValues}`);
+}
+
+
+
+
 
 async function CreateRenderContext()
 {
@@ -72,18 +87,18 @@ async function SokolRenderThread()
 	*/
 	while (Sokol)
 	{
-		Pop.Debug("Wait for render");
-		await Pop.Yield(RenderThrottleMs);
+		//Pop.Debug("Wait for render");
+		//await Pop.Yield(RenderThrottleMs);
 		try
 		{
-			Pop.Debug("Render!");
+			//Pop.Debug("Render!");
 			//await CreateAssets(Sokol);
 		
 			//	submit frame for next paint
 			const Commands = GetRenderCommands();
 			//Pop.Debug(`Render ${FrameCounter} Commands=${Commands} Sokol=${Sokol}`);
 			await Sokol.Render(Commands);
-			Pop.Debug("Render complete");
+			//Pop.Debug("Render complete");
 			FrameCount++;
 			//if ( Params.EnableFrameCounter )
 			//	FrameRateCounter.Add();
