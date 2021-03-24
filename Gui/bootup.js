@@ -2,6 +2,13 @@ let Window = new Pop.Gui.Window("TestAppWindow");
 
 //let Renderer = new Pop.Sokol.Context(Window,'TestRenderView');
 
+let TestValues = ['a','b','c','d'];
+let TestList = new Pop.Gui.List(Window,'TestStringList');
+TestList.SetValue(TestValues);
+TestList.OnChanged = function(NewValues)
+{
+	Pop.Debug(`Test list changed; ${NewValues}`);
+}
 
 async function CreateRenderContext()
 {
