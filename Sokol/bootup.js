@@ -122,19 +122,59 @@ const TestShader_FragSource =`
 #version 100
 precision highp float;
 uniform sampler2D ImageA;
+uniform sampler2D ImageB;
+uniform sampler2D ImageC;
+uniform sampler2D ImageD;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
 varying vec2 uv;
+
+float Range(float Min,float Max,float Value)
+{
+	return (Value-Min) / (Max-Min);
+}
+
+void GetCornerUv(out int CornerIndex,inout vec2 uv)
+{
+	if ( uv.x < 0.5 && uv.y < 0.5 )
+	{
+		CornerIndex = 0;
+		uv.x = Range( 0.0, 0.5, uv.x );
+		uv.y = Range( 0.0, 0.5, uv.y );
+	}
+	else if ( uv.x >= 0.5 && uv.y < 0.5 )
+	{
+		CornerIndex = 1;
+		uv.x = Range( 0.5, 1.0, uv.x );
+		uv.y = Range( 0.0, 0.5, uv.y );
+	}
+	else if ( uv.x >= 0.5 && uv.y >= 0.5 )
+	{
+		CornerIndex = 2;
+		uv.x = Range( 0.5, 1.0, uv.x );
+		uv.y = Range( 0.5, 1.0, uv.y );
+	}
+	else //if ( uv.x < 0.5 && uv.y >= 0.5 )
+	{
+		CornerIndex = 3;
+		uv.x = Range( 0.0, 0.5, uv.x );
+		uv.y = Range( 0.5, 1.0, uv.y );
+	}
+} 
+
 void main()
 {
-	if ( uv.x < 0.5 )
-		gl_FragColor = ColourA;
-	else
-		gl_FragColor = ColourB;
-	
-	gl_FragColor = texture2D( ImageA, uv );
-	//gl_FragColor.xy = uv;
-	//gl_FragColor = vec4(0,0,0,1);
+	int CornerIndex;
+	vec2 Sampleuv = uv;
+	GetCornerUv(CornerIndex,Sampleuv);
+	if ( CornerIndex == 0 )
+		gl_FragColor = texture2D( ImageA, Sampleuv );
+	if ( CornerIndex == 1 )
+		gl_FragColor = texture2D( ImageB, Sampleuv );
+	if ( CornerIndex == 2 )
+		gl_FragColor = texture2D( ImageC, Sampleuv );
+	if ( CornerIndex == 3 )
+		gl_FragColor = texture2D( ImageD, Sampleuv );
 }
 `;
 
@@ -147,10 +187,40 @@ void main()
 }
 `;
 //	todo: get rid of this requirement from sokol
-const TestShaderUniforms = [];
-TestShaderUniforms.push( {Name:'ColourA',Type:'vec4'} );
-TestShaderUniforms.push( {Name:'ColourB',Type:'vec4'} );
-TestShaderUniforms.push( {Name:'ImageA',Type:'sampler2D'} );
+const TestShaderUniforms = 
+[
+	{Name:'ColourA',Type:'vec4'},
+	{Name:'ColourB',Type:'vec4'},
+	{Name:'ImageA',Type:'sampler2D'},
+	{Name:'ImageB',Type:'sampler2D'},
+	{Name:'ImageC',Type:'sampler2D'},
+	{Name:'ImageD',Type:'sampler2D'},
+	{Name:'VideoYuvIsFlipped',Type:'bool'},
+	{Name:'PlaneCount',Type:'int'},/*
+	{Name:'LumaPlane',Type:'sampler2D'},
+	{Name:'Plane2',Type:'sampler2D'},
+	{Name:'Plane3',Type:'sampler2D'},
+	{Name:'LumaPlaneSize',Type:'vec2'},
+	{Name:'Plane2Size',Type:'vec2'},
+	{Name:'Plane3Size',Type:'vec2'},
+	{Name:'Debug_Depth',Type:'float'},
+	{Name:'Debug_MinorAsValid',Type:'float'},
+	{Name:'Debug_MajorAsValid',Type:'float'},
+	{Name:'Debug_DepthAsValid',Type:'float'},
+	{Name:'Debug_PlaceInvalidDepth',Type:'float'},
+	{Name:'Debug_DepthMinMetres',Type:'float'},
+	{Name:'Debug_DepthMaxMetres',Type:'float'},
+	{Name:'ValidMinMetres',Type:'float'},
+	{Name:'Debug_IgnoreMinor',Type:'float'},
+	{Name:'Debug_IgnoreMajor',Type:'float'},
+	{Name:'Encoded_ChromaRangeCount',Type:'int'},
+	{Name:'Encoded_DepthMinMetres',Type:'float'},
+	{Name:'Encoded_DepthMaxMetres',Type:'float'},
+	{Name:'Encoded_LumaPingPong',Type:'bool'},
+	{Name:'DecodedLumaMin',Type:'float'},
+	{Name:'DecodedLumaMax',Type:'float'},*/
+];
+	
 const TargetTestShaderUniforms = TestShaderUniforms;
 
 let ScreenQuad = null;
@@ -172,19 +242,18 @@ function GetRenderCommands()
 	//	flip every frame
 	CatImage.Flip();
 
-	Commands.push(['SetRenderTarget', TargetImage]);
-	Commands.push(['Clear',0,1,0]);
+	Commands.push(['SetRenderTarget', TargetImage, [0,1,0] ]);
 
-	Commands.push(['SetRenderTarget', null]);
-	Commands.push(['Clear',1,0,Blue]);
+	Commands.push(['SetRenderTarget', null, [1,0,Blue] ]);
 	
 	{
 		const Uniforms = {};
 		Uniforms.ColourA = [Blue,1,0,1];
 		Uniforms.ColourB = [0,1,1,1];
 		Uniforms.ImageA = CatImage;
-		Uniforms.ImageA = RenderImage;
-		Uniforms.ImageA = TargetImage;
+		Uniforms.ImageB = RenderImage;
+		Uniforms.ImageC = TargetImage;
+		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input 
 		//Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
@@ -195,46 +264,16 @@ function GetRenderCommands()
 
 async function RenderLoop()
 {
-	/*
-	await Pop.Yield(100);
-	//	submit frame for next paint
-	const Commands = GetRenderCommands();
-	//Pop.Debug(`Render ${FrameCounter}`);
-	await Sokol.Render(Commands);
-	*/
+	ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
+
+	const FragSource = TestShader_FragSource;
+	const VertSource = TestShader_VertSource;
+	const TestShaderAttribs = ScreenQuad_Attribs;
+	TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms,TestShaderAttribs);
+	Pop.Debug(`TestShader=${TestShader}`);
+
 	while (Sokol)
 	{
-		if ( !ScreenQuad )
-		{
-			try
-			{
-				Pop.Debug(`Creating geometry...`);
-				ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
-				Pop.Debug(`ScreenQuad=${ScreenQuad}`);
-			}
-			catch(e)
-			{
-				Pop.Warning(e);
-			}
-		}
-		
-		if ( !TestShader && ScreenQuad_Attribs )
-		{
-			const FragSource = TestShader_FragSource;
-			const VertSource = TestShader_VertSource;
-			try
-			{
-				const TestShaderAttribs = ScreenQuad_Attribs;
-				TestShader = await Sokol.CreateShader(VertSource,FragSource,TestShaderUniforms,TestShaderAttribs);
-				Pop.Debug(`TestShader=${TestShader}`);
-			}
-			catch(e)
-			{
-				Pop.Warning(e);
-			}
-		}
-		
-		
 		try
 		{
 			//await Pop.Yield(100);
@@ -254,38 +293,5 @@ async function RenderLoop()
 		Pop.GarbageCollect();
 	}
 }
-// RenderLoop().catch(Pop.Warning);
+RenderLoop().catch(Pop.Warning);
 
-async function RenderTargetTest()
-{
-	ScreenQuad = await GetScreenQuad_TriangleBuffer(Sokol);
-
-	const FragSource = TestShader_FragSource;
-	const VertSource = TestShader_VertSource;
-	const TestShaderAttribs = ScreenQuad_Attribs;
-	TestShader = await Sokol.CreateShader( VertSource, FragSource, TestShaderUniforms, TestShaderAttribs );
-
-	let TargetImage = new Pop.Image('Target Image');
-	TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
-	
-	const Uniforms = {};
-
-	// This needs to be here otherwise this message appears for both shaders
-	// sg_apply_bindings: vertex shader image count doesn't match sg_shader_desc
-	// Not sure I understand why
-	Uniforms.ImageA = TargetImage;
-
-	const Commands = [];
-
-	Commands.push( [ 'SetRenderTarget', TargetImage, [0,1,0] ] );
-	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
-
-	Commands.push( [ "SetRenderTarget", null, [0,0,1] ] )
-	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
-
-	await Sokol.Render(Commands);
-
-	Pop.Debug("Finished");
-}
-
-RenderTargetTest().catch(Pop.Warning);
