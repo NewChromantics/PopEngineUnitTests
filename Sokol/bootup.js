@@ -5,10 +5,9 @@ Pop.Include = function(Filename)
 }
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
+const Window = new Pop.Gui.Window("TestAppWindow");
 
-const Window = new Pop.Gui.Window(null);
-
-const Sokol = new Pop.Sokol.Context(Window, "GLView");
+const Sokol = new Pop.Sokol.Context(Window, "TestRenderView");
 
 let FrameCounter = 0;
 const FrameRateCounter = new Pop.FrameCounter('Render');
@@ -107,7 +106,8 @@ async function GetScreenQuad_TriangleBuffer(RenderContext)
 
 
 const TestShader_VertSource =`
-//precision highp float;
+#version 100
+precision highp float;
 attribute vec3 LocalUv;
 attribute vec3 LocalPosition;
 varying vec2 uv;
@@ -119,7 +119,8 @@ void main()
 }
 `;
 const TestShader_FragSource =`
-//precision highp float;
+#version 100
+precision highp float;
 uniform sampler2D ImageA;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
@@ -264,21 +265,22 @@ async function RenderTargetTest()
 	const TestShaderAttribs = ScreenQuad_Attribs;
 	TestShader = await Sokol.CreateShader( VertSource, FragSource, TestShaderUniforms, TestShaderAttribs );
 
-	let Image = new Pop.Image( 'Test Image' );
-
+	let TargetImage = new Pop.Image('Target Image');
+	TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
+	
 	const Uniforms = {};
 
 	// This needs to be here otherwise this message appears for both shaders
 	// sg_apply_bindings: vertex shader image count doesn't match sg_shader_desc
 	// Not sure I understand why
-	Uniforms.ImageA = Image;
+	Uniforms.ImageA = TargetImage;
 
 	const Commands = [];
 
-	Commands.push( [ 'SetRenderTarget', Image] );
+	Commands.push( [ 'SetRenderTarget', TargetImage, [0,1,0] ] );
 	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
 
-	Commands.push( [ "SetRenderTarget", null ] )
+	Commands.push( [ "SetRenderTarget", null, [0,0,1] ] )
 	Commands.push( [ 'Draw', ScreenQuad, TestShader, Uniforms ] );
 
 	await Sokol.Render(Commands);
