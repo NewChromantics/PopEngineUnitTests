@@ -7,10 +7,10 @@ Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
 const Window = new Pop.Gui.Window("TestAppWindow");
 const RenderView = new Pop.Gui.RenderView(Window,"TestRenderView");
-Window.OnMouseMove = function(x,y,Button)
+RenderView.OnMouseMove = function(x,y,Button)
 {
 	Pop.Debug(`OnMouseMove ${Array.from(arguments)}`);
-	MouseUv = [x,y];
+	LastMousePosition = [x,y];
 };
 const Sokol = new Pop.Sokol.Context(RenderView);
 
@@ -103,7 +103,8 @@ function GetScreenQuad(MinX,MinY,MaxX,MaxY,TheZ=0)
 
 async function GetScreenQuad_TriangleBuffer(RenderContext)
 {
-	const Geometry = GetScreenQuad(-0.5,-0.5,0.5,0.5,0.5);
+	//const Geometry = GetScreenQuad(-0.5,-0.5,0.5,0.5,0.5);
+	const Geometry = GetScreenQuad(-1,-1,1,1);
 	const Buffer = CreateTriangleBuffer(RenderContext,Geometry);
 	return Buffer;
 }
@@ -216,8 +217,8 @@ let TestShader = null;
 let ScreenQuad_Attribs = null;
 let TargetImage;
 let RenderImage;
-let MouseUv = [0.5,0.5];
-
+let LastMousePosition = [0,0];
+let LastScreenRect = [1,1];
 
 function GetRenderCommands()
 {
@@ -251,7 +252,7 @@ function GetRenderCommands()
 		Uniforms.ImageC = TargetImage;
 		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input
 		
-		Uniforms.MouseUv = MouseUv;
+		Uniforms.MouseUv = [LastMousePosition[0]/LastScreenRect[2],LastMousePosition[1]/LastScreenRect[3]];
 		 
 		//Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
@@ -280,6 +281,7 @@ async function RenderLoop()
 			const Commands = GetRenderCommands();
 			//Pop.Debug(`Render ${FrameCounter}`);
 			await Sokol.Render(Commands);
+			LastScreenRect = Sokol.GetScreenRect();
 		}
 		catch(e)
 		{
