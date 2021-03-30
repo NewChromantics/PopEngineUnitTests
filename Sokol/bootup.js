@@ -6,8 +6,13 @@ Pop.Include = function(Filename)
 Pop.Include('../PopEngineCommon/PopFrameCounter.js');
 
 const Window = new Pop.Gui.Window("TestAppWindow");
-
-const Sokol = new Pop.Sokol.Context(Window, "TestRenderView");
+const RenderView = new Pop.Gui.RenderView(Window,"TestRenderView");
+Window.OnMouseMove = function(x,y,Button)
+{
+	Pop.Debug(`OnMouseMove ${Array.from(arguments)}`);
+	MouseUv = [x,y];
+};
+const Sokol = new Pop.Sokol.Context(RenderView);
 
 let FrameCounter = 0;
 const FrameRateCounter = new Pop.FrameCounter('Render');
@@ -128,6 +133,8 @@ uniform sampler2D ImageD;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
 varying vec2 uv;
+uniform vec2 MouseUv;
+const float MouseRadius = 0.01;
 
 float Range(float Min,float Max,float Value)
 {
@@ -175,6 +182,10 @@ void main()
 		gl_FragColor = texture2D( ImageC, Sampleuv );
 	if ( CornerIndex == 3 )
 		gl_FragColor = texture2D( ImageD, Sampleuv );
+		
+	//	show mouse pos
+	if ( length( uv - MouseUv ) < MouseRadius )
+		gl_FragColor = vec4(1,1,1,1);
 }
 `;
 
@@ -195,30 +206,7 @@ const TestShaderUniforms =
 	{Name:'ImageB',Type:'sampler2D'},
 	{Name:'ImageC',Type:'sampler2D'},
 	{Name:'ImageD',Type:'sampler2D'},
-	{Name:'VideoYuvIsFlipped',Type:'bool'},
-	{Name:'PlaneCount',Type:'int'},/*
-	{Name:'LumaPlane',Type:'sampler2D'},
-	{Name:'Plane2',Type:'sampler2D'},
-	{Name:'Plane3',Type:'sampler2D'},
-	{Name:'LumaPlaneSize',Type:'vec2'},
-	{Name:'Plane2Size',Type:'vec2'},
-	{Name:'Plane3Size',Type:'vec2'},
-	{Name:'Debug_Depth',Type:'float'},
-	{Name:'Debug_MinorAsValid',Type:'float'},
-	{Name:'Debug_MajorAsValid',Type:'float'},
-	{Name:'Debug_DepthAsValid',Type:'float'},
-	{Name:'Debug_PlaceInvalidDepth',Type:'float'},
-	{Name:'Debug_DepthMinMetres',Type:'float'},
-	{Name:'Debug_DepthMaxMetres',Type:'float'},
-	{Name:'ValidMinMetres',Type:'float'},
-	{Name:'Debug_IgnoreMinor',Type:'float'},
-	{Name:'Debug_IgnoreMajor',Type:'float'},
-	{Name:'Encoded_ChromaRangeCount',Type:'int'},
-	{Name:'Encoded_DepthMinMetres',Type:'float'},
-	{Name:'Encoded_DepthMaxMetres',Type:'float'},
-	{Name:'Encoded_LumaPingPong',Type:'bool'},
-	{Name:'DecodedLumaMin',Type:'float'},
-	{Name:'DecodedLumaMax',Type:'float'},*/
+	{Name:'MouseUv',Type:'vec2'},
 ];
 	
 const TargetTestShaderUniforms = TestShaderUniforms;
@@ -226,6 +214,9 @@ const TargetTestShaderUniforms = TestShaderUniforms;
 let ScreenQuad = null;
 let TestShader = null;
 let ScreenQuad_Attribs = null;
+let TargetImage;
+let RenderImage;
+let MouseUv = [0.5,0.5];
 
 
 function GetRenderCommands()
@@ -233,19 +224,24 @@ function GetRenderCommands()
 	const Commands = [];
 	const Blue = (FrameCounter % 60)/60;
 
-	let TargetImage = new Pop.Image('Target Image');
-	TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
+	if ( !TargetImage )
+	{
+		TargetImage = new Pop.Image('Target Image');
+		TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
+	}
 	
-	//	test freeing resources
-	let RenderImage = new Pop.Image(`Image #${FrameCounter}`);
+	//	test freeing resources by creating a new image every time
+	if ( !RenderImage )
+		RenderImage = new Pop.Image(`Image #${FrameCounter}`);
 	RenderImage.Copy(CatImage);
 	//	flip every frame
 	CatImage.Flip();
 
+	//	render cleared colour to the target image
 	Commands.push(['SetRenderTarget', TargetImage, [0,1,0] ]);
 
+	//	render quad with shader to screen
 	Commands.push(['SetRenderTarget', null, [1,0,Blue] ]);
-	
 	{
 		const Uniforms = {};
 		Uniforms.ColourA = [Blue,1,0,1];
@@ -253,7 +249,10 @@ function GetRenderCommands()
 		Uniforms.ImageA = CatImage;
 		Uniforms.ImageB = RenderImage;
 		Uniforms.ImageC = TargetImage;
-		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input 
+		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input
+		
+		Uniforms.MouseUv = MouseUv;
+		 
 		//Uniforms.ZZZFillerForChakraCore = false;
 		Commands.push(['Draw',ScreenQuad,TestShader,Uniforms]);
 	}
@@ -291,6 +290,10 @@ async function RenderLoop()
 		FrameCounter++;
 		FrameRateCounter.Add();
 		Pop.GarbageCollect();
+		
+		//	if garbage collector isn't working, we need to manually clear :/
+		RenderImage.Clear();
+		RenderImage = null;
 	}
 }
 RenderLoop().catch(Pop.Warning);
