@@ -220,7 +220,7 @@ let RenderImage;
 let LastMousePosition = [0,0];
 let LastScreenRect = [1,1];
 
-function GetRenderCommands()
+function GetRenderCommands(RenderContext)
 {
 	const Commands = [];
 	const Blue = (FrameCounter % 60)/60;
@@ -228,7 +228,13 @@ function GetRenderCommands()
 	if ( !TargetImage )
 	{
 		TargetImage = new Pop.Image('Target Image');
-		TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
+		
+		const CanRenderToFloat = RenderContext.CanRenderToPixelFormat('Float4');
+		Pop.Debug(`CanRenderToFloat = ${CanRenderToFloat}`);
+		if ( CanRenderToFloat )
+			TargetImage.WritePixels(100,100,new Float32Array(100 * 100 * 4),'Float4');
+		else	
+			TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
 	}
 	
 	//	test freeing resources by creating a new image every time
@@ -278,7 +284,7 @@ async function RenderLoop()
 		{
 			//await Pop.Yield(100);
 			//	submit frame for next paint
-			const Commands = GetRenderCommands();
+			const Commands = GetRenderCommands(Sokol);
 			//Pop.Debug(`Render ${FrameCounter}`);
 			await Sokol.Render(Commands);
 			LastScreenRect = Sokol.GetScreenRect();
