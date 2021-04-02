@@ -18,6 +18,7 @@ let FrameCounter = 0;
 const FrameRateCounter = new Pop.FrameCounter('Render');
 
 const CatImage = Pop.LoadFileAsImage('Cat.jpg');
+CatImage.SetFormat('RGBA');
 
 async function CreateTriangleBuffer(RenderContext,Geometry)
 {
