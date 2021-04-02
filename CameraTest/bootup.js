@@ -1,21 +1,34 @@
 
-Pop.Include = function(Filename)
+
+async function ReadFromCamera(Name)
 {
-	const Source = Pop.LoadFileAsString(Filename);
-	return Pop.CompileAndRun( Source, Filename );
+	const FrameCount = 1000; 
+	const Options = {};
+	Options.Format = 'RGBA';
+	const Device = new Pop.Media.Source(Name,Options);
+	
+	for ( let i=0;	i<FrameCount;	i++ )
+	{
+		const NewFrame = await Device.WaitForNextFrame();
+		Pop.Debug(`Got frame ${NewFrame}(${NewFrame.PendingFrames} pending) Meta=${JSON.stringify(NewFrame.Meta)}`);
+		NewFrame.Planes.forEach( Image => Image.Clear() );
+	}
+	
+	Device.Free();
 }
 
-const EngineDebug = new Pop.Engine.StatsWindow();
+async function IterateCameras()
+{
+	let Devices = await Pop.Media.EnumDevices();
+	Devices = Devices.Devices;	//	maybe remove this 
+	Pop.Debug(`Got Devices: ${JSON.stringify(Devices,null,'\t')}`);
+	
+	for ( let i=0;	i<100;	i++ )
+		await ReadFromCamera('Freenect:A22595W00862214A_Colour');
+	for ( let Device of Devices )
+	{
+		await ReadFromCamera(Device.Serial);
+	}
+}
 
-Pop.Include('../PopEngineCommon/PopApi.js');
-Pop.Include('../PopEngineCommon/PopMath.js');	//	needed by ParamsWindow
-Pop.Include('../PopEngineCommon/ParamsWindow.js');
-Pop.Include('../Common/PopShaderCache.js');
-Pop.Include('../PopEngineCommon/PopFrameCounter.js');
-Pop.Include('CameraTest.js');
-Pop.Include('../PopEngineCommon/MemCheckLoop.js');
-
-
-
-
-
+IterateCameras().then(Pop.Debug).catch(Pop.Warning);
