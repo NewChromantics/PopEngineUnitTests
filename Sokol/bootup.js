@@ -218,6 +218,7 @@ let TestShader = null;
 let ScreenQuad_Attribs = null;
 let TargetImage;
 let RenderImage;
+let BigImage;
 let LastMousePosition = [0,0];
 let LastScreenRect = [1,1];
 
@@ -228,23 +229,38 @@ function GetRenderCommands(RenderContext)
 
 	if ( !TargetImage )
 	{
+		const TargetWidth = 100;
+		const TargetHeight = 100;
 		TargetImage = new Pop.Image('Target Image');
 		
 		const CanRenderToFloat = RenderContext.CanRenderToPixelFormat('Float4');
 		Pop.Debug(`CanRenderToFloat = ${CanRenderToFloat}`);
 		if ( CanRenderToFloat )
-			TargetImage.WritePixels(100,100,new Float32Array(100 * 100 * 4),'Float4');
+			TargetImage.WritePixels(TargetWidth,TargetHeight,new Float32Array(TargetWidth * TargetHeight * 4),'Float4');
 		else	
-			TargetImage.WritePixels(100,100,new Uint8Array(100 * 100 * 4),'RGBA');
+			TargetImage.WritePixels(TargetWidth,TargetHeight,new Uint8Array(TargetWidth * TargetHeight * 4),'RGBA');
+	}
+	
+	if ( !BigImage )
+	{
+		const TargetWidth = 4096;
+		const TargetHeight = 4096;
+		BigImage = new Pop.Image('Target Image');
+		
+		BigImage.WritePixels(TargetWidth,TargetHeight,new Float32Array(TargetWidth * TargetHeight * 4),'Float4');
 	}
 	
 	//	test freeing resources by creating a new image every time
 	if ( !RenderImage )
+	{
 		RenderImage = new Pop.Image(`Image #${FrameCounter}`);
-	RenderImage.Copy(CatImage);
+		RenderImage.Copy(CatImage);
+	}
+	/*
 	//	flip every frame
+	RenderImage.Copy(CatImage);
 	CatImage.Flip();
-
+*/
 	//	render cleared colour to the target image
 	Commands.push(['SetRenderTarget', TargetImage, [0,1,0] ]);
 
@@ -258,6 +274,7 @@ function GetRenderCommands(RenderContext)
 		Uniforms.ImageB = RenderImage;
 		Uniforms.ImageC = TargetImage;
 		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input
+		Uniforms.ImageD = BigImage;
 		
 		Uniforms.MouseUv = [LastMousePosition[0]/LastScreenRect[2],LastMousePosition[1]/LastScreenRect[3]];
 		 
@@ -298,11 +315,19 @@ async function RenderLoop()
 
 		FrameCounter++;
 		FrameRateCounter.Add();
-		Pop.GarbageCollect();
+		//Pop.GarbageCollect();
+		
+		Pop.Debug(`Renderstats: ${JSON.stringify(Sokol.GetStats(),null,'\t')}`);
 		
 		//	if garbage collector isn't working, we need to manually clear :/
 		RenderImage.Clear();
 		RenderImage = null;
+		
+		if ( BigImage )
+		{
+			BigImage.Clear();
+			BigImage = null;
+		}
 	}
 }
 RenderLoop().catch(Pop.Warning);
