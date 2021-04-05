@@ -221,6 +221,7 @@ let RenderImage;
 let BigImage;
 let LastMousePosition = [0,0];
 let LastScreenRect = [1,1];
+const RenderTargetColour = [0,1,0];
 
 function GetRenderCommands(RenderContext)
 {
@@ -229,8 +230,8 @@ function GetRenderCommands(RenderContext)
 
 	if ( !TargetImage )
 	{
-		const TargetWidth = 100;
-		const TargetHeight = 100;
+		const TargetWidth = 640;
+		const TargetHeight = 480;
 		TargetImage = new Pop.Image('Target Image');
 		
 		const CanRenderToFloat = RenderContext.CanRenderToPixelFormat('Float4');
@@ -262,7 +263,8 @@ function GetRenderCommands(RenderContext)
 	CatImage.Flip();
 */
 	//	render cleared colour to the target image
-	Commands.push(['SetRenderTarget', TargetImage, [0,1,0] ]);
+	Commands.push(['SetRenderTarget', TargetImage, RenderTargetColour ]);
+	Commands.push(['ReadPixels', TargetImage ]);
 
 	//	render quad with shader to screen
 	Commands.push(['SetRenderTarget', null, [1,0,Blue] ]);
@@ -318,6 +320,11 @@ async function RenderLoop()
 		//Pop.GarbageCollect();
 		
 		Pop.Debug(`Renderstats: ${JSON.stringify(Sokol.GetStats(),null,'\t')}`);
+		
+		//	test pixel readback
+		const TargetPixels = TargetImage.GetPixelBuffer();
+		const Pixel0 = TargetPixels.slice(0,3);
+		Pop.Debug(`Target Pixel0=[${Pixel0}] Expected=[${RenderTargetColour}]`);
 		
 		//	if garbage collector isn't working, we need to manually clear :/
 		RenderImage.Clear();
