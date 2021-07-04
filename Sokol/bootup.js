@@ -132,6 +132,10 @@ uniform sampler2D ImageA;
 uniform sampler2D ImageB;
 uniform sampler2D ImageC;
 uniform sampler2D ImageD;
+uniform sampler2D ImageE;
+uniform sampler2D ImageF;
+uniform sampler2D ImageG;
+//uniform sampler2D ImageH;
 uniform vec4 ColourB;
 uniform vec4 ColourA;
 varying vec2 uv;
@@ -145,30 +149,16 @@ float Range(float Min,float Max,float Value)
 
 void GetCornerUv(out int CornerIndex,inout vec2 uv)
 {
-	if ( uv.x < 0.5 && uv.y < 0.5 )
-	{
-		CornerIndex = 0;
-		uv.x = Range( 0.0, 0.5, uv.x );
-		uv.y = Range( 0.0, 0.5, uv.y );
-	}
-	else if ( uv.x >= 0.5 && uv.y < 0.5 )
-	{
-		CornerIndex = 1;
-		uv.x = Range( 0.5, 1.0, uv.x );
-		uv.y = Range( 0.0, 0.5, uv.y );
-	}
-	else if ( uv.x >= 0.5 && uv.y >= 0.5 )
-	{
-		CornerIndex = 2;
-		uv.x = Range( 0.5, 1.0, uv.x );
-		uv.y = Range( 0.5, 1.0, uv.y );
-	}
-	else //if ( uv.x < 0.5 && uv.y >= 0.5 )
-	{
-		CornerIndex = 3;
-		uv.x = Range( 0.0, 0.5, uv.x );
-		uv.y = Range( 0.5, 1.0, uv.y );
-	}
+	float Cols = 4.0;
+	float Rows = 2.0;
+	float x0 = floor( uv.x * (Cols) );
+	float y0 = floor( uv.y * (Rows) );
+	float x1 = x0 + 1.0;
+	float y1 = y0 + 1.0;
+	
+	CornerIndex = int( x0 + (y0*Cols) );
+	uv.x = Range( x0, x1, uv.x*Cols );
+	uv.y = Range( y0, y1, uv.y*Rows );
 } 
 
 void main()
@@ -184,6 +174,14 @@ void main()
 		gl_FragColor = texture2D( ImageC, Sampleuv );
 	if ( CornerIndex == 3 )
 		gl_FragColor = texture2D( ImageD, Sampleuv );
+	if ( CornerIndex == 4 )
+		gl_FragColor = texture2D( ImageE, Sampleuv );
+	if ( CornerIndex == 5 )
+		gl_FragColor = texture2D( ImageF, Sampleuv );
+	if ( CornerIndex == 6 )
+		gl_FragColor = texture2D( ImageG, Sampleuv );
+	//if ( CornerIndex == 7 )
+	//	gl_FragColor = texture2D( ImageH, Sampleuv );
 		
 	//	show mouse pos
 	if ( length( uv - MouseUv ) < MouseRadius )
@@ -208,6 +206,9 @@ const TestShaderUniforms =
 	{Name:'ImageB',Type:'sampler2D'},
 	{Name:'ImageC',Type:'sampler2D'},
 	{Name:'ImageD',Type:'sampler2D'},
+	{Name:'ImageE',Type:'sampler2D'},
+	{Name:'ImageF',Type:'sampler2D'},
+	{Name:'ImageG',Type:'sampler2D'},
 	{Name:'MouseUv',Type:'vec2'},
 ];
 	
@@ -216,30 +217,60 @@ const TargetTestShaderUniforms = TestShaderUniforms;
 let ScreenQuad = null;
 let TestShader = null;
 let ScreenQuad_Attribs = null;
-let TargetImage;
 let RenderImage;
 let BigImage;
 let LastMousePosition = [0,0];
 let LastScreenRect = [1,1];
-const RenderTargetColour = [0,1,0];
+
+let TargetImageA;
+let TargetImageB;
+let TargetImageC;
+const RenderTargetColour = [1,0.5,0];
 
 function GetRenderCommands(RenderContext)
 {
 	const Commands = [];
 	const Blue = (FrameCounter % 60)/60;
 
-	if ( !TargetImage )
+	if ( !TargetImageA )
 	{
 		const TargetWidth = 640;
 		const TargetHeight = 480;
-		TargetImage = new Pop.Image('Target Image');
-		
-		const CanRenderToFloat = RenderContext.CanRenderToPixelFormat('Float4');
+		TargetImageA = new Pop.Image('Target ImageA');
+		TargetImageA.WritePixels(TargetWidth,TargetHeight,null,'Float4');
+	}
+	
+	if ( !TargetImageB )
+	{
+		const TargetWidth = 640;
+		const TargetHeight = 480;
+		TargetImageB = new Pop.Image('Target ImageB');
+		TargetImageB.WritePixels(TargetWidth,TargetHeight,null,'Greyscale');
+	}
+	
+	
+	if ( !TargetImageC )
+	{
+		const TargetWidth = 640;
+		const TargetHeight = 480;
+		TargetImageC = new Pop.Image('Target ImageC');
+
+		let CanRenderToFloat = RenderContext.CanRenderToPixelFormat('Float4');
+		let CanRenderToGreyscale = RenderContext.CanRenderToPixelFormat('Greyscale');
+		Pop.Debug(`CanRenderToGreyscale = ${CanRenderToGreyscale}`);
 		Pop.Debug(`CanRenderToFloat = ${CanRenderToFloat}`);
+		/*
+		CanRenderToFloat = false;
 		if ( CanRenderToFloat )
 			TargetImage.WritePixels(TargetWidth,TargetHeight,new Float32Array(TargetWidth * TargetHeight * 4),'Float4');
 		else	
 			TargetImage.WritePixels(TargetWidth,TargetHeight,new Uint8Array(TargetWidth * TargetHeight * 4),'RGBA');
+		*/
+		//	try rendering to greyscale
+		//TargetImage.WritePixels(TargetWidth,TargetHeight,null,'Greyscale');
+		//	try rendering to yuv
+		//TargetImageC.WritePixels(TargetWidth,TargetHeight,null,'Yuv_8_8_8');
+		TargetImageC.WritePixels(TargetWidth,TargetHeight,null,'RGBA');
 	}
 	
 	if ( !BigImage )
@@ -262,9 +293,15 @@ function GetRenderCommands(RenderContext)
 	RenderImage.Copy(CatImage);
 	CatImage.Flip();
 */
-	//	render cleared colour to the target image
-	Commands.push(['SetRenderTarget', TargetImage, RenderTargetColour ]);
-	Commands.push(['ReadPixels', TargetImage ]);
+	//	render cleared colour to the target images
+	//	todo: test frag that writes to all
+	//Commands.push(['SetRenderTarget', [TargetImageA,TargetImageB,TargetImageC], RenderTargetColour ]);
+	const ReadBackPixels = true;
+	Commands.push(['SetRenderTarget', [TargetImageA,TargetImageB,TargetImageC], RenderTargetColour, ReadBackPixels ]);
+	//Commands.push(['SetRenderTarget', TargetImageA, [1,0,0] ]);
+	//Commands.push(['SetRenderTarget', TargetImageB, [0,1,0] ]);
+	//Commands.push(['SetRenderTarget', TargetImageC, [0,0,1] ]);
+	Commands.push(['ReadPixels', TargetImageA ]);
 
 	//	render quad with shader to screen
 	Commands.push(['SetRenderTarget', null, [1,0,Blue] ]);
@@ -272,12 +309,15 @@ function GetRenderCommands(RenderContext)
 		const Uniforms = {};
 		Uniforms.ColourA = [Blue,1,0,1];
 		Uniforms.ColourB = [0,1,1,1];
-		Uniforms.ImageA = CatImage;
-		Uniforms.ImageB = RenderImage;
-		Uniforms.ImageC = TargetImage;
-		Uniforms.ImageD = null;			//	we want our renderer to cope with null as texture input
-		Uniforms.ImageD = BigImage;
-		
+		Uniforms.ImageA = TargetImageA;
+		Uniforms.ImageB = TargetImageB;
+		Uniforms.ImageC = TargetImageC;
+		Uniforms.ImageD = CatImage;
+		Uniforms.ImageE = RenderImage;
+		Uniforms.ImageF = BigImage;
+		Uniforms.ImageG = null;	//	we want our renderer to cope with null as texture input
+		//Uniforms.ImageH = null;	//	we want our renderer to cope with null as texture input
+
 		Uniforms.MouseUv = [LastMousePosition[0]/LastScreenRect[2],LastMousePosition[1]/LastScreenRect[3]];
 		 
 		//Uniforms.ZZZFillerForChakraCore = false;
@@ -322,10 +362,11 @@ async function RenderLoop()
 		Pop.Debug(`Renderstats: ${JSON.stringify(Sokol.GetStats(),null,'\t')}`);
 		
 		//	test pixel readback
-		const TargetPixels = TargetImage.GetPixelBuffer();
+		const TargetPixels = TargetImageA.GetPixelBuffer();
 		const Pixel0 = TargetPixels.slice(0,3);
 		Pop.Debug(`Target Pixel0=[${Pixel0}] Expected=[${RenderTargetColour}]`);
 		
+		/*
 		//	if garbage collector isn't working, we need to manually clear :/
 		RenderImage.Clear();
 		RenderImage = null;
@@ -335,6 +376,7 @@ async function RenderLoop()
 			BigImage.Clear();
 			BigImage = null;
 		}
+		*/
 	}
 }
 RenderLoop().catch(Pop.Warning);
