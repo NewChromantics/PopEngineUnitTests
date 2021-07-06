@@ -1,7 +1,16 @@
 export default function Hello()
 {
-	Pop.Debug("print-hello");
+	Pop.Debug("Hello()");
 	return 1;
+}
+
+export class AClass
+{
+};
+
+export async function AsyncFunc()
+{
+	Pop.Debug(`AsyncFunc()`);
 }
 
 
