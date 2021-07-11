@@ -1,6 +1,14 @@
 let Window = new Pop.Gui.Window("TestAppWindow");
 
-//let Renderer = new Pop.Sokol.Context(Window,'TestRenderView');
+{
+//let RenderView = new Pop.Sokol.Context(Window,'TestRenderView');
+let RenderView = new Pop.Gui.RenderView(Window,'TestRenderView');
+RenderView.OnMouseMove = function()
+{
+	const Args = Array.from(arguments);
+	Pop.Debug(`OnMouseMove(${Args}`);
+}
+}
 
 let TestValues = ['a','b','c','d'];
 let SelectedValues = TestValues.slice(1,2);
