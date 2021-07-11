@@ -1,10 +1,9 @@
-
-const ClassModuleDefault = 'I am the class module';
-export default ClassModuleDefault;
-
-export class MyClass
+//	test class symbol
+//	test underscore
+export default class Test_Class
 {
-  constructor(beep)
-  {
-  }
+	Beep()
+	{
+		Pop.Debug("Beep()");
+	}
 }
