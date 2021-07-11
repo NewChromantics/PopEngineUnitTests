@@ -4,6 +4,11 @@ import {	Hello, AsyncFunc, Hello as Hello2    } from './Folder/FuncModule.js'
 import BeepClass from './Folder/ClassModule.js'
 import {Test_Class as ClassAsAsAsAs} from './Folder/ClassModule.js'
 
+//	native popengine should ignore PopEngine.js, which is where we return a module on web.
+//	todo: split into PopEngine seperate modules
+import Pop from './PopEngine.js'
+//import Pop from './FakeDir/PopEngine.js'
+
 FuncModule.default();
 FuncModule.Hello();
 HelloDefault();
