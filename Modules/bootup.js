@@ -23,3 +23,9 @@ Pop.Debug(`aaa = ${FuncModule.aaa}`);
 Pop.Debug(`bbb = ${FuncModule.bbb}`);
 Pop.Debug(`ccc = ${FuncModule.ccc}`);
 Pop.Debug(`ddd = ${FuncModule.ddd}`);
+
+//	allow web support of bootup.js by having a default export
+//	todo: support this
+//export default 'WebSupport';
+const Default = 'Web Support (bootup as module)';
+export default Default;
